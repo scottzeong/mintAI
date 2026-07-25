@@ -19,7 +19,7 @@ import pgserver
 import psycopg
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-MIGRATION = ROOT / "supabase" / "migrations" / "0001_init.sql"
+MIGRATIONS_DIR = ROOT / "supabase" / "migrations"
 
 # Supabase 의 auth 스키마 대역. 로컬 Postgres 에는 없으므로 최소한만 흉내낸다.
 AUTH_SHIM = """
@@ -67,20 +67,25 @@ def main() -> int:
     con.execute("create schema public;")
     con.execute(AUTH_SHIM)
 
-    sql = MIGRATION.read_text(encoding="utf-8")
+    files = sorted(MIGRATIONS_DIR.glob("*.sql"))
     has_trgm = val(
         "select count(*) from pg_available_extensions where name='pg_trgm';"
     )
     if not has_trgm:
         print("  ⚠ pg_trgm 없음 — GIN 인덱스 생략")
         print("    (인덱스는 속도 전용이라 정확성 검증에는 영향 없음. §2.1)")
-        sql = sql.replace("create extension if not exists pg_trgm;", "")
-        sql = sql.replace(
-            "create index if not exists idx_cards_trgm "
-            "on cards using gin (search_blob gin_trgm_ops);",
-            "",
-        )
-    con.execute(sql)
+
+    for f in files:
+        sql = f.read_text(encoding="utf-8")
+        if not has_trgm:
+            sql = sql.replace("create extension if not exists pg_trgm;", "")
+            sql = sql.replace(
+                "create index if not exists idx_cards_trgm "
+                "on cards using gin (search_blob gin_trgm_ops);",
+                "",
+            )
+        con.execute(sql)
+        print(f"  적용: {f.name}")
     print("\n마이그레이션 적용 완료\n")
 
     uid = "11111111-1111-1111-1111-111111111111"
@@ -238,8 +243,44 @@ def main() -> int:
         "사용 일수 집계 가능 (§8)",
     )
 
-    # ══════════════ 6. RLS ══════════════
-    print("\n6. RLS — 남의 데이터가 보이면 안 된다")
+    # ══════════════ 6. Write / drafts (§3.4) ══════════════
+    print("\n6. drafts — Write 화면 (§3.4)")
+    did = val("insert into drafts(title) values ('신뢰라는 비용') returning id;")
+    check(val("select body_md from drafts where id=%s;", did) == "", "새 원고는 빈 본문")
+
+    long_body = "우리는 신뢰를 감정이라 부르지만, 조직에서 그것은 회계 항목에 가깝다. " * 20
+    con.execute(
+        "update drafts set body_md=%s, updated_at=now() where id=%s", (long_body, did)
+    )
+    check(
+        val("select char_length(body_md) from drafts where id=%s;", did) >= 800,
+        "800자 이상 저장됨 (§8 '완성한 글' 판정 기준)",
+    )
+
+    # ══════════════ 7. ★ stats() — §8 판정 지표 ══════════════
+    print("\n7. ★ stats() — 4주 뒤 판정을 이 함수 하나로 (§8)")
+    s = val("select stats();")
+    expected_keys = {
+        "ideas", "cards", "drafts", "pending_digest", "digest_rate",
+        "active_days", "avg_queue", "paste_blocked", "research_failed", "long_drafts",
+    }
+    check(set(s) == expected_keys, f"지표 10종 반환 ({len(s)}개)")
+    check(s["long_drafts"] == 1, f"800자 이상 글 집계 ({s['long_drafts']})")
+    check(s["active_days"] == 1, f"사용 일수 ({s['active_days']})")
+    check(s["paste_blocked"] == 0, "붙여넣기 시도 집계")
+    check(isinstance(s["digest_rate"], (int, float)), "전환율이 수치")
+
+    con.execute("insert into events(kind, meta) values ('paste_blocked','idea:1')")
+    s2 = val("select stats();")
+    check(s2["paste_blocked"] == 1, "붙여넣기 기록이 즉시 반영됨 — H1의 직접 증거")
+
+    # meta 가 숫자가 아닌 app_open 이 섞여도 평균 계산이 깨지면 안 된다
+    con.execute("insert into events(kind, meta) values ('app_open','알수없음')")
+    err = fails("select stats();")
+    check(err is None, f"비정상 meta 가 섞여도 stats() 가 죽지 않음{'' if err is None else ' — ' + err}")
+
+    # ══════════════ 8. RLS ══════════════
+    print("\n8. RLS — 남의 데이터가 보이면 안 된다")
     con.execute("update _test_ctx set uid=%s", (other,))
     check(val("select count(*) from cards;") == 0, "다른 사용자에게는 카드 0건")
     check(val("select count(*) from search_cards('협력비용');") == 0, "검색도 격리됨")

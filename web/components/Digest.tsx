@@ -14,6 +14,10 @@ import type { Idea, ResearchRun } from '@/lib/types'
  * 검증 대상은 H1 — "AI 자료를 읽고 직접 요약하는 마찰을 감수할 만한가."
  * 붙여넣기 차단이 불편해서 이 화면을 안 쓰게 된다면, 그 자체가 H1의 답이다.
  */
+const POLL_MS = 2000
+/** 3분. 이걸 넘으면 폴링을 멈춘다 — 무한 폴링은 조용히 요청을 낭비한다. */
+const POLL_TIMEOUT_MS = 180_000
+
 export default function Digest() {
   const [queue, setQueue] = useState<Idea[]>([])
   const [current, setCurrent] = useState<Idea | null>(null)
@@ -92,39 +96,92 @@ export default function Digest() {
    *
    * 진행 상황은 ideas.status 하나로 표현한다. 별도 job 테이블도 큐도 없다.
    * 함수가 죽어 researching 에 갇히면, 다음 앱 진입 때 app_open() 이 되돌린다.
+   *
+   * ⚠ invoke 를 await 하지 않는다.
+   *
+   *   리서치는 30~60초가 걸린다. 여기서 기다리면 (a) 폴링이 리서치가 끝난 뒤에야
+   *   시작되어 존재 이유를 잃고, (b) 게이트웨이 타임아웃이 나면 실제로는 성공한
+   *   작업을 "실패"로 표시한다. 사용자는 버튼을 다시 누르고 중복 run 이 쌓인다.
+   *   mock 공급자는 즉시 끝나서 이 버그가 보이지 않는다 — 실제 공급자를 붙이는
+   *   순간 드러난다.
    */
   async function research(idea: Idea) {
     setBusy(true)
     setError(null)
-    try {
-      await supabase.functions.invoke('research', { body: { idea_id: idea.id } })
 
-      const poll = async () => {
-        const { data } = await supabase
-          .from('ideas')
-          .select('*')
-          .eq('id', idea.id)
-          .single()
-        const fresh = data as Idea | null
+    // 클라이언트가 먼저 researching 으로 바꾼다.
+    // Edge Function 도 같은 일을 하지만, 그걸 기다리면 첫 폴링이 아직 inbox 인
+    // 상태를 보고 실패로 오판한다. 먼저 바꿔두면 그 경합이 사라진다.
+    await supabase
+      .from('ideas')
+      .update({ status: 'researching', researching_since: new Date().toISOString() })
+      .eq('id', idea.id)
+    await refreshQueue()
 
-        if (fresh?.status === 'awaiting_digest') {
-          setBusy(false)
-          await refreshQueue()
-          await open(fresh)
-        } else if (fresh?.status === 'inbox') {
-          setBusy(false)
-          const r = await fetchRun(idea.id)
-          setError(r?.error ? `조사 실패: ${r.error}` : '조사에 실패했습니다')
-          await refreshQueue()
-        } else {
-          pollTimer.current = setTimeout(() => void poll(), 2000)
-        }
-      }
-      pollTimer.current = setTimeout(() => void poll(), 1500)
-    } catch {
+    const startedAt = Date.now()
+    let done = false
+
+    const finish = async (msg: string | null) => {
+      if (done) return
+      done = true
+      clearTimeout(pollTimer.current)
       setBusy(false)
-      setError('조사를 시작하지 못했습니다')
+      if (msg) setError(msg)
+      await refreshQueue()
     }
+
+    const failToInbox = async (msg: string) => {
+      await supabase
+        .from('ideas')
+        .update({ status: 'inbox', researching_since: null })
+        .eq('id', idea.id)
+      await finish(msg)
+    }
+
+    // ★ 던져놓고 기다리지 않는다. 실패 사유는 그대로 화면에 노출한다 —
+    //   "조사에 실패했습니다" 만으로는 함수 미배포인지 키 누락인지 알 수 없다.
+    void supabase.functions
+      .invoke('research', { body: { idea_id: idea.id } })
+      .then(({ error }) => {
+        if (error) void failToInbox(`조사를 시작하지 못했습니다 — ${error.message}`)
+      })
+      .catch((e: unknown) =>
+        failToInbox(
+          `조사를 시작하지 못했습니다 — ${e instanceof Error ? e.message : String(e)}`,
+        ),
+      )
+
+    const poll = async () => {
+      if (done) return
+
+      const { data } = await supabase
+        .from('ideas')
+        .select('*')
+        .eq('id', idea.id)
+        .single()
+      const fresh = data as Idea | null
+
+      if (fresh?.status === 'awaiting_digest') {
+        await finish(null)
+        await open(fresh)
+        return
+      }
+      if (fresh?.status === 'inbox') {
+        // Edge Function 이 실패해서 되돌려 놓은 경우 — 사유가 run 에 남아 있다
+        const r = await fetchRun(idea.id)
+        await finish(r?.error ? `조사 실패: ${r.error}` : '조사에 실패했습니다')
+        return
+      }
+      if (Date.now() - startedAt > POLL_TIMEOUT_MS) {
+        // 여기서 상태를 건드리지 않는 이유: 함수가 아직 살아 있을 수 있다.
+        // 정말 죽었다면 다음 앱 진입 때 app_open() 이 되돌린다 (§4.1).
+        await finish('조사가 너무 오래 걸립니다. 잠시 후 큐에서 다시 확인하세요.')
+        return
+      }
+      pollTimer.current = setTimeout(() => void poll(), POLL_MS)
+    }
+
+    pollTimer.current = setTimeout(() => void poll(), POLL_MS)
   }
 
   /**

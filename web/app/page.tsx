@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import AuthGate from '@/components/AuthGate'
 import Capture from '@/components/Capture'
 import Digest from '@/components/Digest'
+import Library from '@/components/Library'
+import Write from '@/components/Write'
 import { appOpen } from '@/lib/events'
 import { supabase } from '@/lib/supabase'
 
@@ -14,10 +16,10 @@ import { supabase } from '@/lib/supabase'
  * 새 탭으로 열 일도 없다.
  */
 const SCREENS = [
-  { id: 'capture', label: 'Capture', week: 1 },
-  { id: 'digest', label: 'Digest', week: 2 },
-  { id: 'library', label: 'Library', week: 3 },
-  { id: 'write', label: 'Write', week: 3 },
+  { id: 'capture', label: 'Capture' },
+  { id: 'digest', label: 'Digest' },
+  { id: 'library', label: 'Library' },
+  { id: 'write', label: 'Write' },
 ] as const
 
 type ScreenId = (typeof SCREENS)[number]['id']
@@ -33,7 +35,6 @@ export default function Page() {
 function Shell() {
   const [screen, setScreen] = useState<ScreenId>('capture')
   const [pending, setPending] = useState<number | null>(null)
-  const current = SCREENS.find((s) => s.id === screen)!
 
   // ★ 계측 + 고아 복구 (§2.2, §4.1). 로그인 직후 정확히 한 번.
   useEffect(() => {
@@ -80,14 +81,10 @@ function Shell() {
           <Capture />
         ) : screen === 'digest' ? (
           <Digest />
+        ) : screen === 'library' ? (
+          <Library />
         ) : (
-          <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-            <p className="text-stone-500">
-              <strong className="text-stone-700">{current.label}</strong> — Week{' '}
-              {current.week} 구현 예정
-            </p>
-            <p className="mt-2 text-sm text-stone-400">docs/MVP.md §7 개발 계획</p>
-          </div>
+          <Write />
         )}
       </main>
     </div>

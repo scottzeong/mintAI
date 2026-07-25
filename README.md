@@ -35,14 +35,14 @@
 
 ## 현재 상태
 
-**Week 2 완료 + 스택 이전 완료**
+**4개 화면 전부 구현 완료 — 실사용 검증 단계(Week 4)**
 
 | 화면 | 상태 |
 |---|---|
 | **Capture** | ✅ autofocus · 연속 입력 · ⌘Enter · 낙관적 저장 |
 | **Digest** ★ | ✅ 좌우 분할 · 붙여넣기 차단 · 원자적 폐기 |
-| **Library** | ⬜ Week 3 — `search_cards()` 는 완료 |
-| **Write** | ⬜ Week 3 |
+| **Library** | ✅ 한국어 검색 · 상세 · 수정 · 삭제 |
+| **Write** | ✅ 자동저장 · 카드 인용 삽입 · 마크다운 미리보기 |
 
 2026-07-25, 로컬 FastAPI + SQLite 에서 **Vercel + Supabase** 로 옮겼다.
 이유와 대가는 [MVP.md §6.1 · §6.2](docs/MVP.md) 참조.
@@ -60,22 +60,24 @@ mock이 그럴듯한 가짜 문장을 만들지 않는 건 의도적이다 — �
 ```
 web/                      Next.js (Vercel)
   app/                    App Router
-  components/             Capture · Digest · AuthGate
+  components/             Capture · Digest · Library · Write · AuthGate
   lib/                    supabase 클라이언트 · 계측 · 타입
 supabase/
   migrations/0001_init.sql   ★ 스키마 정본 — 테이블 6개 + 함수 3개 + RLS
+  migrations/0002_stats.sql  §8 판정 지표 함수
   functions/research/        Edge Function (리서치)
-  tests/run_tests.py         실제 Postgres 로 돌리는 검증 34종
+  tests/run_tests.py         실제 Postgres 로 돌리는 검증 43종
 docs/                     MVP.md · PRD.md
 ```
 
-**서버 로직은 Postgres 함수 3개가 전부다.**
+**서버 로직은 Postgres 함수 4개가 전부다.**
 
 | 함수 | 역할 |
 |---|---|
 | `digest()` | ★ 카드 생성 + 출처 승계 + **AI 산문 폐기** + 상태 전이 (원자적) |
 | `search_cards()` | 한국어 검색 (MVP.md §2.1) |
 | `app_open()` | 계측 기록 + 리서치 고아 복구 (§2.2 · §4.1) |
+| `stats()` | §8 판정 지표 10종 — 4주 뒤 이 함수 하나로 판정 |
 
 > `digest()` 가 DB 안에 있는 이유: 폐기가 클라이언트 코드에 있으면 클라이언트를
 > 바꿔서 건너뛸 수 있다. DB 함수 안에 있으면 **어떤 경로로 소화하든 폐기가 함께
@@ -86,7 +88,8 @@ docs/                     MVP.md · PRD.md
 ### 1. Supabase
 
 1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
-2. SQL Editor 에 `supabase/migrations/0001_init.sql` 전체를 붙여넣고 실행
+2. SQL Editor 에 `supabase/migrations/` 의 SQL 을 **번호 순서대로** 실행
+   (`0001_init.sql` → `0002_stats.sql`)
 3. Authentication → Providers → **Email** 활성화, Confirm email 켜기
 4. Project Settings → API 에서 **Project URL** 과 **anon key** 복사
 
@@ -120,7 +123,7 @@ Supabase Authentication → URL Configuration 에 Vercel 도메인을
 
 ```bash
 pip install pgserver "psycopg[binary]"
-python supabase/tests/run_tests.py     # 34/34 — PostgreSQL 16.2 실측
+python supabase/tests/run_tests.py     # 43/43 — PostgreSQL 16.2 실측
 cd web && npm.cmd run build
 ```
 
@@ -129,6 +132,24 @@ cd web && npm.cmd run build
 
 가장 중요한 검사는 `digest()` 원자성 — 요약이 비어 저장이 실패했을 때
 **AI 산문이 폐기되지 않고 남아 있는지**를 확인한다.
+
+## 4주 뒤 판정
+
+```sql
+select stats();
+```
+
+| 지표 | 목표 |
+|---|---|
+| `cards` | ≥ 20 |
+| `active_days` | ≥ 12 / 28일 |
+| `digest_rate` | ≥ 0.40 |
+| `avg_queue` | ≤ 5 |
+| `long_drafts` | ≥ 1 |
+| `paste_blocked` | 기록만 — H1이 무너지는 순간을 가장 먼저 보여준다 |
+
+판정 해석은 [MVP.md §8](docs/MVP.md) 참조. **"카드가 안 쌓임"이 가장 중요한 실패
+모드다** — 그 경우 나머지를 아무리 정교하게 만들었어도 전제가 틀린 것이다.
 
 ## 로컬판 이력
 

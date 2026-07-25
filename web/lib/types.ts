@@ -25,8 +25,31 @@ export interface Card {
 }
 
 export interface Source {
+  id?: number
+  card_id?: number
   url: string | null
   title: string | null
+}
+
+export interface Draft {
+  id: number
+  title: string
+  body_md: string
+  updated_at: string
+}
+
+/** docs/MVP.md §8 판정 지표 — `stats()` RPC 반환값 */
+export interface Stats {
+  ideas: number
+  cards: number
+  drafts: number
+  pending_digest: number
+  digest_rate: number
+  active_days: number
+  avg_queue: number
+  paste_blocked: number
+  research_failed: number
+  long_drafts: number
 }
 
 export interface ResearchRun {
