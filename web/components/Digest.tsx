@@ -235,6 +235,42 @@ export default function Digest() {
     }, 300)
   }
 
+  /**
+   * 자료 폐기 — 카드를 만들지 않고 버린다 (§3.5).
+   *
+   * 쓸모없는 자료로 억지 카드를 만들면 Library 가 오염된다. 나가는 길이
+   * "소화 완료" 하나뿐이면 그렇게 된다.
+   *
+   * 폐기도 계측한다. 전환율이 낮을 때 "요약이 귀찮아서"인지 "자료가 쓸모없어서"인지
+   * 구분할 수 있는 유일한 신호다 (§8).
+   */
+  async function discard(archiveIdea: boolean) {
+    if (!current) return
+    const msg = archiveIdea
+      ? '자료를 버리고 착상도 보관 처리할까요?'
+      : '자료를 버릴까요? 착상은 큐에 남아 다시 조사할 수 있습니다.'
+    if (!confirm(msg)) return
+
+    setBusy(true)
+    const { error } = await supabase.rpc('discard_research', {
+      p_idea_id: current.id,
+      p_archive_idea: archiveIdea,
+    })
+    setBusy(false)
+    if (error) {
+      setError(error.message)
+      return
+    }
+    setPurging(true)
+    setTimeout(async () => {
+      setPurging(false)
+      setCurrent(null)
+      setRun(null)
+      resetForm()
+      await refreshQueue()
+    }, 300)
+  }
+
   const canSubmit = !!title.trim() && !!summary.trim() && !busy
   const sources = run?.sources_json ?? []
 
@@ -306,7 +342,20 @@ export default function Digest() {
         >
           <header className="mb-3 flex items-center justify-between text-xs">
             <span className="font-semibold text-stone-500">AI 자료</span>
-            <span className="text-amber-700">⏳ 소화하면 삭제됩니다</span>
+            <div className="flex items-center gap-3">
+              <span className="text-amber-700">⏳ 소화하면 삭제됩니다</span>
+              {run?.output_md && (
+                <button
+                  onClick={() => void discard(false)}
+                  disabled={busy}
+                  title="카드를 만들지 않고 자료만 버립니다. 착상은 큐에 남습니다."
+                  className="rounded border border-stone-300 px-2 py-0.5 text-stone-500
+                             hover:border-red-300 hover:text-red-600 disabled:opacity-40"
+                >
+                  버리기
+                </button>
+              )}
+            </div>
           </header>
 
           <p className="mb-3 text-sm font-medium text-stone-700">
@@ -414,6 +463,15 @@ export default function Digest() {
                        disabled:bg-stone-300"
           >
             소화 완료 — 왼쪽 삭제
+          </button>
+
+          <button
+            onClick={() => void discard(true)}
+            disabled={busy}
+            className="mt-2 w-full py-1.5 text-xs text-stone-400 hover:text-red-600
+                       disabled:opacity-40"
+          >
+            이 착상은 접는다 — 자료 폐기 + 보관
           </button>
         </section>
       </div>

@@ -31,6 +31,17 @@ export interface Source {
   title: string | null
 }
 
+export interface Collection {
+  id: number
+  name: string
+  n?: number
+}
+
+export interface TagCount {
+  tag: string
+  n: number
+}
+
 export interface Draft {
   id: number
   title: string

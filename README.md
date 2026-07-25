@@ -40,8 +40,8 @@
 | 화면 | 상태 |
 |---|---|
 | **Capture** | ✅ autofocus · 연속 입력 · ⌘Enter · 낙관적 저장 |
-| **Digest** ★ | ✅ 좌우 분할 · 붙여넣기 차단 · 원자적 폐기 |
-| **Library** | ✅ 한국어 검색 · 상세 · 수정 · 삭제 |
+| **Digest** ★ | ✅ 좌우 분할 · 붙여넣기 차단 · 원자적 폐기 · **자료 버리기** |
+| **Library** | ✅ 한국어 검색 · 상세 · 수정 · 삭제 · **분류(태그·컬렉션)** |
 | **Write** | ✅ 자동저장 · 카드 인용 삽입 · 마크다운 미리보기 |
 
 2026-07-25, 로컬 FastAPI + SQLite 에서 **Vercel + Supabase** 로 옮겼다.
@@ -76,19 +76,23 @@ web/                      Next.js (Vercel)
 supabase/
   migrations/0001_init.sql   ★ 스키마 정본 — 테이블 6개 + 함수 3개 + RLS
   migrations/0002_stats.sql  §8 판정 지표 함수
+  migrations/0003_discard.sql  자료 폐기 (§3.5)
+  migrations/0004_classify.sql 카드 분류 — 컬렉션·태그 (§3.6)
   functions/research/        Edge Function (리서치)
-  tests/run_tests.py         실제 Postgres 로 돌리는 검증 43종
+  tests/run_tests.py         실제 Postgres 로 돌리는 검증 61종
 docs/                     MVP.md · PRD.md
 ```
 
-**서버 로직은 Postgres 함수 4개가 전부다.**
+**서버 로직은 Postgres 함수 7개가 전부다.**
 
 | 함수 | 역할 |
 |---|---|
 | `digest()` | ★ 카드 생성 + 출처 승계 + **AI 산문 폐기** + 상태 전이 (원자적) |
 | `search_cards()` | 한국어 검색 (MVP.md §2.1) |
 | `app_open()` | 계측 기록 + 리서치 고아 복구 (§2.2 · §4.1) |
-| `stats()` | §8 판정 지표 10종 — 4주 뒤 이 함수 하나로 판정 |
+| `stats()` | §8 판정 지표 12종 — 4주 뒤 이 함수 하나로 판정 |
+| `discard_research()` | 카드 없이 자료 폐기 — 폐기 경로에서도 원칙 1 집행 (§3.5) |
+| `tag_counts()` · `collection_counts()` | 분류 집계 (§3.6) |
 
 > `digest()` 가 DB 안에 있는 이유: 폐기가 클라이언트 코드에 있으면 클라이언트를
 > 바꿔서 건너뛸 수 있다. DB 함수 안에 있으면 **어떤 경로로 소화하든 폐기가 함께
@@ -100,7 +104,7 @@ docs/                     MVP.md · PRD.md
 
 1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
 2. SQL Editor 에 `supabase/migrations/` 의 SQL 을 **번호 순서대로** 실행
-   (`0001_init.sql` → `0002_stats.sql`)
+   (`0001` → `0002` → `0003` → `0004`)
 3. Authentication → Providers → **Email** 활성화, Confirm email 켜기
 4. Project Settings → API 에서 **Project URL** 과 **anon key** 복사
 
@@ -134,7 +138,7 @@ Supabase Authentication → URL Configuration 에 Vercel 도메인을
 
 ```bash
 pip install pgserver "psycopg[binary]"
-python supabase/tests/run_tests.py     # 43/43 — PostgreSQL 16.2 실측
+python supabase/tests/run_tests.py     # 61/61 — PostgreSQL 16.2 실측
 cd web && npm.cmd run build
 ```
 
@@ -158,6 +162,7 @@ select stats();
 | `avg_queue` | ≤ 5 |
 | `long_drafts` | ≥ 1 |
 | `paste_blocked` | 기록만 — H1이 무너지는 순간을 가장 먼저 보여준다 |
+| `discard_rate` | 기록만 — 높으면 H1이 아니라 리서치 품질 문제 |
 
 판정 해석은 [MVP.md §8](docs/MVP.md) 참조. **"카드가 안 쌓임"이 가장 중요한 실패
 모드다** — 그 경우 나머지를 아무리 정교하게 만들었어도 전제가 틀린 것이다.

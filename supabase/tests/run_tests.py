@@ -116,12 +116,13 @@ def main() -> int:
         ).fetchall()
     )
     check(
-        tables == {"ideas", "research_runs", "cards", "sources", "drafts", "events"},
-        f"6개 테이블 생성됨 ({len(tables)}개)",
+        tables == {"ideas", "research_runs", "cards", "sources", "drafts", "events",
+                   "collections", "card_collections"},
+        f"8개 테이블 생성됨 ({len(tables)}개)",
     )
     check(
-        val("select count(*) from pg_policies where schemaname='public';") == 6,
-        "RLS 정책 6개",
+        val("select count(*) from pg_policies where schemaname='public';") == 8,
+        "RLS 정책 8개 — 새 테이블도 빠짐없이",
     )
 
     # ══════════════ 2. ★ digest() — 원칙 1·2 ══════════════
@@ -262,9 +263,10 @@ def main() -> int:
     s = val("select stats();")
     expected_keys = {
         "ideas", "cards", "drafts", "pending_digest", "digest_rate",
-        "active_days", "avg_queue", "paste_blocked", "research_failed", "long_drafts",
+        "active_days", "avg_queue", "paste_blocked", "research_failed",
+        "discarded", "discard_rate", "long_drafts",
     }
-    check(set(s) == expected_keys, f"지표 10종 반환 ({len(s)}개)")
+    check(set(s) == expected_keys, f"지표 12종 반환 ({len(s)}개)")
     check(s["long_drafts"] == 1, f"800자 이상 글 집계 ({s['long_drafts']})")
     check(s["active_days"] == 1, f"사용 일수 ({s['active_days']})")
     check(s["paste_blocked"] == 0, "붙여넣기 시도 집계")
@@ -279,8 +281,83 @@ def main() -> int:
     err = fails("select stats();")
     check(err is None, f"비정상 meta 가 섞여도 stats() 가 죽지 않음{'' if err is None else ' — ' + err}")
 
-    # ══════════════ 8. RLS ══════════════
-    print("\n8. RLS — 남의 데이터가 보이면 안 된다")
+    # ══════════════ 8. 자료 폐기 (§3.5) ══════════════
+    print("\n8. discard_research() — 카드 없이 버리기 (§3.5)")
+    iid3 = val("insert into ideas(raw_thought, status) values ('쓸모없는 조사','awaiting_digest') returning id;")
+    con.execute(
+        "insert into research_runs(idea_id, output_md, sources_json) "
+        "values (%s,'쓸모없는 AI 산문','[{\"url\":\"https://x.example\"}]'::jsonb);",
+        (iid3,),
+    )
+    cards_before = val("select count(*) from cards;")
+
+    con.execute("select discard_research(%s);", (iid3,))
+    check(val("select count(*) from cards;") == cards_before, "카드가 생기지 않음")
+    check(
+        val("select output_md from research_runs where idea_id=%s;", iid3) is None,
+        "★ 폐기 경로에서도 AI 산문은 사라진다 — 원칙 1",
+    )
+    check(
+        val("select sources_json::text <> '[]' from research_runs where idea_id=%s;", iid3),
+        "sources_json 은 남는다 (무엇을 찾아봤는지는 사실 기록)",
+    )
+    check(val("select status from ideas where id=%s;", iid3) == "inbox",
+          "기본은 inbox 복귀 — 질문을 고쳐 다시 조사할 수 있다")
+    check(val("select count(*) from events where kind='research_discarded';") == 1,
+          "★ 폐기가 계측된다 — H1과 리서치 품질을 구분하는 신호")
+
+    iid4 = val("insert into ideas(raw_thought) values ('접을 착상') returning id;")
+    con.execute("select discard_research(%s, true);", (iid4,))
+    check(val("select status from ideas where id=%s;", iid4) == "archived",
+          "archive 옵션은 착상을 보관 처리")
+    check(fails("select discard_research(999999);") is not None, "없는 착상은 예외")
+
+    s3 = val("select stats();")
+    check("discard_rate" in s3 and "discarded" in s3, "stats() 에 폐기 지표 포함")
+    check(s3["discarded"] == 2, f"폐기 건수 집계 ({s3['discarded']})")
+
+    # ══════════════ 9. 분류 — 컬렉션·태그 (§3.6) ══════════════
+    print("\n9. 분류 모듈 (§3.6)")
+    c1 = val("insert into collections(name) values ('조직론') returning id;")
+    c2 = val("insert into collections(name) values ('집필중') returning id;")
+    check(fails("insert into collections(name) values ('조직론');") is not None,
+          "같은 이름 컬렉션은 중복 불가")
+
+    ids = [r[0] for r in con.execute("select id from cards order by id").fetchall()]
+    # ★ 다차원 — 카드 하나가 여러 컬렉션에 동시에 속한다
+    con.execute("insert into card_collections(card_id, collection_id) values (%s,%s),(%s,%s)",
+                (ids[0], c1, ids[0], c2))
+    con.execute("insert into card_collections(card_id, collection_id) values (%s,%s)",
+                (ids[1], c1))
+
+    counts = {r[1]: r[2] for r in con.execute("select * from collection_counts()").fetchall()}
+    check(counts.get("조직론") == 2 and counts.get("집필중") == 1,
+          f"컬렉션별 카드 수 ({counts})")
+    check(
+        val("select count(*) from card_collections where card_id=%s;", ids[0]) == 2,
+        "★ 카드 하나가 두 컬렉션에 동시 소속 (다차원)",
+    )
+    check(val("select count(*) from search_cards(null,null,null,%s);", c1) == 2,
+          "컬렉션으로 필터링")
+
+    tc = {r[0]: r[1] for r in con.execute("select * from tag_counts()").fetchall()}
+    check(len(tc) > 0 and all(t == t.strip() for t in tc), f"태그 집계 ({len(tc)}종)")
+
+    check(val("select count(*) from search_cards(null,null,array['조직'],null);") >= 1,
+          "태그 배열로 필터링")
+    check(
+        val("select count(*) from search_cards(null,null,array['조직','없는태그'],null);") == 0,
+        "★ 태그 여러 개는 AND — 전부 만족해야 남는다",
+    )
+    check(val("select count(*) from search_cards('협력비용');") >= 0,
+          "기존 호출부(p_q 만)가 그대로 동작")
+
+    con.execute("delete from collections where id=%s", (c2,))
+    check(val("select count(*) from cards where id=%s;", ids[0]) == 1,
+          "컬렉션을 지워도 카드는 남는다")
+
+    # ══════════════ 10. RLS ══════════════
+    print("\n10. RLS — 남의 데이터가 보이면 안 된다")
     con.execute("update _test_ctx set uid=%s", (other,))
     check(val("select count(*) from cards;") == 0, "다른 사용자에게는 카드 0건")
     check(val("select count(*) from search_cards('협력비용');") == 0, "검색도 격리됨")
