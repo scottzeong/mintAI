@@ -1,8 +1,8 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { marked } from 'marked'
 import { supabase } from '@/lib/supabase'
+import Markdown from '@/components/Markdown'
 import type { Card, Draft, Source } from '@/lib/types'
 
 /**
@@ -216,10 +216,9 @@ export default function Write() {
           />
 
           {preview ? (
-            <div
-              className="prose prose-sm prose-stone min-h-[28rem] max-w-none leading-7"
-              dangerouslySetInnerHTML={{ __html: marked.parse(body) as string }}
-            />
+            <div className="prose prose-sm prose-stone min-h-[28rem] max-w-none leading-7">
+              <Markdown>{body}</Markdown>
+            </div>
           ) : (
             <textarea
               ref={bodyRef}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { logEvent } from '@/lib/events'
+import Markdown from '@/components/Markdown'
 import type { Idea, ResearchRun } from '@/lib/types'
 
 /**
@@ -312,8 +313,10 @@ export default function Digest() {
             Q. {current.question || current.raw_thought}
           </p>
 
-          <div className="whitespace-pre-wrap text-sm leading-relaxed text-stone-600">
-            {run?.output_md ?? '자료 없음'}
+          {/* 마크다운으로 렌더링한다. 날것으로 두면 `**`·`>` 가 그대로 보여
+              읽기가 불편해지고, 그 마찰이 H1 측정에 섞인다 (§0.1). */}
+          <div className="prose prose-sm prose-stone max-w-none text-stone-600">
+            {run?.output_md ? <Markdown>{run.output_md}</Markdown> : <p>자료 없음</p>}
           </div>
 
           {sources.length > 0 && (

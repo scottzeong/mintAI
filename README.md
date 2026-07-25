@@ -47,13 +47,24 @@
 2026-07-25, 로컬 FastAPI + SQLite 에서 **Vercel + Supabase** 로 옮겼다.
 이유와 대가는 [MVP.md §6.1 · §6.2](docs/MVP.md) 참조.
 
-### ⚠ 리서치 공급자가 아직 `mock` 이다
+### 리서치 공급자
 
-실제 검색·LLM을 호출하지 않는다. `supabase/functions/research/index.ts` 의
-`PROVIDERS` 에 추가하고 `MINTAI_RESEARCH_PROVIDER` 시크릿으로 지정하면 교체된다.
+| 값 | 동작 |
+|---|---|
+| `mock` (기본) | 검색 없음. 내용이 비어 있다 — **일부러** 그렇다. 그럴듯한 가짜를 요약하면 거짓을 재료로 한 카드가 영구 저장된다 |
+| `openai` | OpenAI Responses API 내장 웹 검색 (`gpt-5.5`) |
+| `claude` | Claude Messages API 내장 웹 검색 (`claude-sonnet-5`) |
 
-mock이 그럴듯한 가짜 문장을 만들지 않는 건 의도적이다 — 거짓을 재료로 만든 카드는
-나중에 구분할 방법이 없다.
+```powershell
+supabase.cmd secrets set OPENAI_API_KEY=sk-...
+supabase.cmd secrets set MINTAI_RESEARCH_PROVIDER=openai
+supabase.cmd functions deploy research
+```
+
+모델만 바꾸려면 `MINTAI_RESEARCH_MODEL` 을 설정한다 (예: 속도가 급하면 `gpt-4.1`).
+
+인용은 **실제로 인용된 것만** 카드에 승계된다. 모델이 훑어본 URL 전체가 아니다 —
+자세한 이유는 [MVP.md §4.2](docs/MVP.md).
 
 ## 구조
 

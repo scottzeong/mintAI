@@ -42,8 +42,249 @@ function mockProvider(question: string): ResearchResult {
   }
 }
 
+// ─────────────────────────── Claude 공급자 ───────────────────────────
+//
+// 검색 벤더를 따로 두지 않는다. Claude API 의 내장 web_search 도구가
+// 검색·종합·인용을 한 번에 처리하고, 인용이 { url, title } 구조로 돌아와
+// 원칙 2(출처 승계)에 그대로 맞는다. 키가 하나면 고장날 곳도 하나다.
+//
+// 비용: 검색 $10 / 1,000회 + 토큰. max_uses 5 이므로 리서치 1건당 최대 $0.05 수준.
+
+const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages'
+const DEFAULT_MODEL = 'claude-sonnet-5'
+const MAX_SEARCHES = 5
+const MAX_PAUSE_TURNS = 4
+
+const SYSTEM_PROMPT = `당신은 대중서를 쓰는 저술가의 리서치 조수입니다.
+사용자의 질문에 답하기 위해 **반드시 웹 검색을 사용**하고, 찾은 내용을 한국어로 정리하세요.
+
+출력 규칙 — 엄격히 지키세요:
+1. **1,100자 이내.** 이 자료는 사람이 읽고 직접 요약할 재료입니다. 길면 읽히지 않습니다.
+2. 핵심 요점 3~5개를 마크다운 불릿으로.
+3. 마지막에 **"## 다른 관점"** 섹션을 두고, 위 요점과 충돌하거나 단서를 다는 견해를 1~2개.
+4. 각 요점 끝에 근거가 된 출처의 이름을 괄호로 표시하세요. 예: (OECD 보고서)
+5. 인사말·서론·"검색해보겠습니다" 같은 말은 쓰지 마세요. 곧바로 요점부터.
+6. 확실하지 않은 것은 확실하지 않다고 쓰세요. 추측을 사실처럼 쓰지 마세요.
+
+"다른 관점" 섹션은 생략하지 마세요. 반대 견해가 정말 없다면 그렇게 적으세요.`
+
+interface Block {
+  type: string
+  text?: string
+  citations?: { url?: string; title?: string }[]
+}
+
+async function claudeProvider(question: string): Promise<ResearchResult> {
+  const key = Deno.env.get('ANTHROPIC_API_KEY')
+  if (!key) {
+    throw new Error(
+      'ANTHROPIC_API_KEY 시크릿이 없습니다. ' +
+        '`supabase secrets set ANTHROPIC_API_KEY=sk-ant-...` 로 설정하세요.',
+    )
+  }
+  const model = Deno.env.get('MINTAI_RESEARCH_MODEL') ?? DEFAULT_MODEL
+
+  // deno-lint-ignore no-explicit-any
+  const messages: any[] = [{ role: 'user', content: question }]
+  // deno-lint-ignore no-explicit-any
+  let data: any = null
+
+  // 검색이 길어지면 API 가 stop_reason='pause_turn' 으로 턴을 끊는다.
+  // 받은 assistant 메시지를 그대로 되돌려 보내면 이어서 진행한다.
+  for (let turn = 0; turn < MAX_PAUSE_TURNS; turn++) {
+    const res = await fetch(ANTHROPIC_URL, {
+      method: 'POST',
+      headers: {
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
+        messages,
+        tools: [
+          {
+            // 20250305 는 기본이 direct 호출이라 dynamic filtering 을 쓰지 않는다.
+            // 리서치 1건 규모에서는 필터링 이득보다 복잡도가 크다.
+            type: 'web_search_20250305',
+            name: 'web_search',
+            max_uses: MAX_SEARCHES,
+            user_location: {
+              type: 'approximate',
+              country: 'KR',
+              timezone: 'Asia/Seoul',
+            },
+          },
+        ],
+      }),
+    })
+
+    if (!res.ok) {
+      const body = (await res.text()).slice(0, 300)
+      throw new Error(`Claude API ${res.status} — ${body}`)
+    }
+    data = await res.json()
+    if (data.stop_reason !== 'pause_turn') break
+    messages.push({ role: 'assistant', content: data.content })
+  }
+
+  const blocks: Block[] = data?.content ?? []
+  const text = blocks
+    .filter((b) => b.type === 'text' && b.text)
+    .map((b) => b.text!)
+    .join('')
+    .trim()
+
+  if (!text) throw new Error('Claude 가 빈 응답을 반환했습니다')
+
+  // 출처는 **실제로 인용된 것만** 모은다.
+  // 검색 결과 전체를 넣으면 읽지도 않은 페이지가 카드에 승계된다 (원칙 2 취지 위반).
+  const sources: { url: string; title: string }[] = []
+  const seen = new Set<string>()
+  for (const b of blocks) {
+    for (const c of b.citations ?? []) {
+      if (c.url && !seen.has(c.url)) {
+        seen.add(c.url)
+        sources.push({ url: c.url, title: c.title || c.url })
+      }
+    }
+  }
+
+  const searches = data?.usage?.server_tool_use?.web_search_requests ?? 0
+  const body =
+    searches === 0
+      ? `> ⚠ 웹 검색이 수행되지 않았습니다. 아래는 모델의 기존 지식이며 출처가 없습니다.\n\n${text}`
+      : text
+
+  return { output_md: body, sources, model: `${model} (검색 ${searches}회)` }
+}
+
+// ─────────────────────────── OpenAI 공급자 ───────────────────────────
+//
+// Responses API 의 내장 `web_search` 도구를 쓴다. Claude 판과 목적은 같지만
+// 응답 구조가 달라 파싱을 공유할 수 없다:
+//
+//   Claude : content[] 안의 text 블록에 citations[] 가 붙는다
+//   OpenAI : output[] 안의 message → content[] → output_text 의
+//            annotations[] 에 type='url_citation' 로 붙는다
+//
+// ⚠ `sources` 필드가 아니라 `annotations` 를 쓴다.
+//    sources 는 모델이 **훑어본** URL 전체 목록이고, annotations 는 **실제로
+//    인용한** 것이다. sources 를 쓰면 읽지도 않은 페이지가 카드에 승계된다.
+//    원칙 2는 "사실 데이터를 승계한다"이지 "검색 로그를 승계한다"가 아니다.
+
+const OPENAI_URL = 'https://api.openai.com/v1/responses'
+const DEFAULT_OPENAI_MODEL = 'gpt-5.5'
+
+interface OpenAIAnnotation {
+  type?: string
+  url?: string
+  title?: string
+}
+interface OpenAIContent {
+  type?: string
+  text?: string
+  annotations?: OpenAIAnnotation[]
+}
+interface OpenAIOutputItem {
+  type?: string
+  content?: OpenAIContent[]
+}
+
+async function openaiProvider(question: string): Promise<ResearchResult> {
+  const key = Deno.env.get('OPENAI_API_KEY')
+  if (!key) {
+    throw new Error(
+      'OPENAI_API_KEY 시크릿이 없습니다. ' +
+        '`supabase secrets set OPENAI_API_KEY=sk-...` 로 설정하세요.',
+    )
+  }
+  const model = Deno.env.get('MINTAI_RESEARCH_MODEL') ?? DEFAULT_OPENAI_MODEL
+
+  const res = await fetch(OPENAI_URL, {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${key}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      instructions: SYSTEM_PROMPT,
+      input: question,
+      max_output_tokens: 4096,
+      // tool_choice 를 auto 로 두면 모델이 검색을 건너뛰고 기존 지식으로 답할 수
+      // 있다. 그러면 출처 없는 자료가 나온다 — §4 규격 위반.
+      tool_choice: 'required',
+      tools: [
+        {
+          type: 'web_search',
+          search_context_size: 'medium',
+          user_location: {
+            type: 'approximate',
+            country: 'KR',
+            timezone: 'Asia/Seoul',
+          },
+        },
+      ],
+    }),
+  })
+
+  if (!res.ok) {
+    const body = (await res.text()).slice(0, 300)
+    throw new Error(`OpenAI API ${res.status} — ${body}`)
+  }
+
+  const data = await res.json()
+  const output: OpenAIOutputItem[] = data?.output ?? []
+
+  let text = ''
+  let searches = 0
+  const sources: { url: string; title: string }[] = []
+  const seen = new Set<string>()
+
+  for (const item of output) {
+    if (item.type === 'web_search_call') {
+      searches++
+      continue
+    }
+    if (item.type !== 'message') continue
+
+    for (const c of item.content ?? []) {
+      if (c.type !== 'output_text') continue
+      text += c.text ?? ''
+      for (const a of c.annotations ?? []) {
+        if (a.type === 'url_citation' && a.url && !seen.has(a.url)) {
+          seen.add(a.url)
+          sources.push({ url: a.url, title: a.title || a.url })
+        }
+      }
+    }
+  }
+
+  text = text.trim()
+  if (!text) {
+    const reason = data?.incomplete_details?.reason
+    throw new Error(
+      `OpenAI 가 빈 응답을 반환했습니다${reason ? ` (${reason})` : ''}`,
+    )
+  }
+
+  const body =
+    searches === 0
+      ? `> ⚠ 웹 검색이 수행되지 않았습니다. 아래는 모델의 기존 지식이며 출처가 없습니다.\n\n${text}`
+      : text
+
+  return { output_md: body, sources, model: `${model} (검색 ${searches}회)` }
+}
+
 const PROVIDERS: Record<string, (q: string) => Promise<ResearchResult> | ResearchResult> = {
   mock: mockProvider,
+  openai: openaiProvider,
+  // Claude 판도 남겨둔다. 어댑터가 실제로 교체 가능한지 보여주는 증거이고,
+  // 나중에 키가 생기면 시크릿 한 줄로 바꿔 끼울 수 있다.
+  claude: claudeProvider,
 }
 
 function normalize(r: ResearchResult): ResearchResult {

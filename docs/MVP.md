@@ -318,7 +318,7 @@ SELECT count(*) FROM events WHERE kind='paste_blocked';
 **규격**
 - 출력 **1,200자 이내** (소화 병목 방지 — R1)
 - 요점 3~5개 + **"다른 관점" 1~2개** (반론 습관은 MVP에서도 유지)
-- 각 요점에 출처 번호
+- 각 요점 끝에 **출처 이름**을 괄호로 표시 (번호 매김은 하지 않는다 — §4.2)
 - 출처 5개 이내
 
 **뺀 것:** 학술 DB 우선순위, tier 등급, OA 확보, PDF 파싱.
@@ -326,6 +326,48 @@ SELECT count(*) FROM events WHERE kind='paste_blocked';
 
 > 다만 **"다른 관점" 섹션은 남겼다.** 이건 학술 기능이 아니라 사고 습관이고,
 > 비용이 거의 안 드는데 글의 깊이를 크게 바꾼다.
+
+### 4.2 리서치 공급자 — 모델 API 내장 웹 검색
+
+**검색 벤더를 따로 두지 않는다.** OpenAI·Claude 모두 모델 API 안에 웹 검색 도구가
+있어서, 검색·종합·인용을 한 번에 처리한다.
+
+| | OpenAI (현재 사용) | Claude (대기) |
+|---|---|---|
+| 엔드포인트 | Responses API | Messages API |
+| 도구 | `web_search` | `web_search_20250305` |
+| 기본 모델 | `gpt-5.5` | `claude-sonnet-5` |
+| 인용 위치 | `output[].content[].annotations[]` (`url_citation`) | `content[].citations[]` |
+| 시크릿 | `OPENAI_API_KEY` | `ANTHROPIC_API_KEY` |
+
+`MINTAI_RESEARCH_PROVIDER` 로 고르고, `MINTAI_RESEARCH_MODEL` 로 모델만 바꿀 수 있다.
+
+**왜 별도 검색 API 를 안 쓰나**
+
+1. **인용이 구조화되어 돌아온다.** `{ url, title }` 형태라 `sources_json` 에 그대로
+   들어간다. 검색 API + LLM 조합이면 "LLM 이 요약한 내용"과 "검색 결과 URL"을
+   따로 받아 짝지어야 하고, 그 짝짓기는 신뢰할 수 없다.
+2. 키가 하나면 고장날 곳도 하나다.
+
+**⚠ `sources` 가 아니라 `annotations` 를 쓴다 (OpenAI)**
+
+OpenAI 는 두 가지를 준다. `sources` 는 모델이 **훑어본** URL 전체이고,
+`annotations` 는 **실제로 인용한** 것이다. 전자를 쓰면 **읽지도 않은 페이지가
+카드에 승계된다.** 원칙 2는 "사실 데이터를 승계한다"이지 "검색 로그를 승계한다"가
+아니다. Claude 판에서도 같은 이유로 검색 결과 블록이 아니라 인용을 쓴다.
+
+**`tool_choice: "required"`**
+
+`auto` 로 두면 모델이 검색을 건너뛰고 기존 지식으로 답할 수 있다. 그러면 출처 없는
+자료가 나오고, 그걸 요약한 카드는 나중에 출처를 되찾을 방법이 없다.
+그럼에도 검색이 0회로 돌아오면 자료 상단에 경고를 붙여 요약할지 판단하게 한다.
+
+**출처 번호를 매기지 않는 이유**
+
+§3.2 목업에는 `■ 요점 1 ... [1]` 처럼 번호가 붙어 있다. 그런데 인용은 구조화된
+배열로 오고 본문의 `[1]` 은 모델이 쓴 문자열이라, **둘이 어긋나도 알 방법이 없다.**
+어긋난 번호는 없는 번호보다 나쁘다 — 잘못된 출처를 승계하게 된다.
+대신 요점 끝에 출처 이름을 괄호로 적게 하고, 체크박스 목록의 제목과 눈으로 맞춘다.
 
 ### 4.1 ⚠ "비동기 실행"을 무엇으로 하는가
 
@@ -422,10 +464,26 @@ CRUD 를 직접 쓸 필요가 없어졌기 때문이지, 기능을 뺀 게 아�
 | DB | **Supabase Postgres** + RLS |
 | 인증 | **Supabase Auth 매직 링크** |
 | 서버 로직 | **Postgres 함수** (`digest`, `search_cards`, `app_open`) |
-| 리서치 실행 | **Supabase Edge Function** (§4.1) |
+| 리서치 실행 | **Supabase Edge Function** + 모델 API 내장 웹 검색 (§4.2) |
 | 프론트 | React 19 + TS + Tailwind |
-| 에디터 | `<textarea>` + marked.js — TipTap 유예 |
+| 에디터 | `<textarea>` + **react-markdown** — TipTap 유예 (§6.3) |
 | 마이그레이션 | `supabase/migrations/` (번호순 SQL) |
+
+### 6.3 ⚠ 마크다운은 react-markdown 으로 렌더링한다
+
+원래 §6은 `marked.js` 를 적었다. **Digest 좌측 자료를 렌더링하기 시작하면서
+그 선택이 위험해졌다.**
+
+좌측에 표시되는 것은 **웹 검색 결과를 LLM 이 가공한 외부 콘텐츠**다. 내가 쓴 글이
+아니라 남이 쓴 웹페이지에서 온 문자열이다. `marked` + `dangerouslySetInnerHTML` 은
+그 안의 `<script>` 나 `onerror` 를 그대로 실행한다.
+
+`react-markdown` 은 마크다운을 React 엘리먼트로 직접 만든다. `innerHTML` 을 쓰지
+않고, 마크다운 안의 raw HTML 은 기본적으로 무시한다.
+
+> **DOMPurify 를 붙이는 선택지도 있었다.** 그건 "위험한 기본값 + 방어막"이고
+> 이쪽은 "안전한 기본값"이다. **방어막은 빠뜨릴 수 있고, 빠뜨려도 당장은 아무 일도
+> 일어나지 않는다.** 그래서 기본값을 바꾸는 쪽을 골랐다.
 
 ### 6.1 왜 옮겼는가
 
