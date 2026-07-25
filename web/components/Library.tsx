@@ -98,7 +98,7 @@ export default function Library() {
   }
 
   async function createCollection() {
-    const name = prompt('새 컬렉션 이름')?.trim()
+    const name = prompt('새 Collection 이름')?.trim()
     if (!name) return
     const { error } = await supabase.from('collections').insert({ name })
     if (error) setError(error.message)
@@ -108,7 +108,7 @@ export default function Library() {
   async function deleteCollection(id: number, name: string) {
     // 컬렉션을 지워도 카드는 남는다 (card_collections 만 CASCADE).
     // 분류는 카드에 대한 견해일 뿐, 카드 자체가 아니다.
-    if (!confirm(`컬렉션 "${name}" 을 삭제할까요? 카드는 그대로 남습니다.`)) return
+    if (!confirm(`Collection "${name}" 을 삭제할까요? 카드는 그대로 남습니다.`)) return
     const { error } = await supabase.from('collections').delete().eq('id', id)
     if (error) {
       setError(error.message)
@@ -144,7 +144,7 @@ export default function Library() {
         <aside className="space-y-6 text-sm">
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-stone-400">컬렉션</h3>
+              <h3 className="text-xs uppercase tracking-wider text-stone-400">Collection</h3>
               <button
                 onClick={() => void createCollection()}
                 className="text-xs text-stone-400 hover:text-stone-700"
@@ -184,7 +184,7 @@ export default function Library() {
                     onClick={() => void deleteCollection(c.id, c.name)}
                     className="invisible px-1 text-xs text-stone-300 hover:text-red-600
                                group-hover:visible"
-                    title="컬렉션 삭제"
+                    title="Collection 삭제"
                   >
                     ×
                   </button>
@@ -198,7 +198,7 @@ export default function Library() {
 
           <div>
             <h3 className="mb-2 text-xs uppercase tracking-wider text-stone-400">
-              태그
+              Tag
               {activeTags.length > 0 && (
                 <button
                   onClick={() => setActiveTags([])}
@@ -231,7 +231,7 @@ export default function Library() {
             )}
             {activeTags.length > 1 && (
               <p className="mt-2 px-1 text-xs text-stone-400">
-                태그를 여러 개 고르면 <strong>전부 만족</strong>하는 카드만 남습니다
+                Tag 를 여러 개 고르면 <strong>전부 만족</strong>하는 카드만 남습니다
               </p>
             )}
           </div>
@@ -409,18 +409,18 @@ function CardDetail({
       <input
         value={tags}
         onChange={(e) => setTags(e.target.value)}
-        placeholder="태그 (쉼표 구분)"
+        placeholder="Tag (쉼표 구분)"
         className="mb-5 w-full rounded border border-stone-300 bg-white px-3 py-2 text-sm"
       />
 
       {/* 컬렉션 — 여러 곳에 동시에 속할 수 있다 */}
       <div className="mb-5 rounded-lg border border-stone-200 bg-white p-4">
         <p className="mb-2 text-xs font-semibold text-stone-500">
-          컬렉션 <span className="font-normal text-stone-400">— 여러 곳에 넣어도 됩니다</span>
+          Collection <span className="font-normal text-stone-400">— 여러 곳에 넣어도 됩니다</span>
         </p>
         {collections.length === 0 ? (
           <p className="text-xs text-stone-400">
-            아직 컬렉션이 없습니다. 목록 화면 좌측에서 만들 수 있습니다.
+            아직 Collection 이 없습니다. 목록 화면 좌측에서 만들 수 있습니다.
           </p>
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -483,7 +483,7 @@ function CardDetail({
           disabled={!dirty || busy}
           className="rounded-lg bg-stone-800 px-5 py-2 text-sm text-white disabled:bg-stone-300"
         >
-          {dirty ? '저장' : '변경 없음'}
+          {dirty ? 'Save' : '변경 없음'}
         </button>
       </div>
     </div>

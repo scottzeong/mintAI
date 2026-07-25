@@ -169,7 +169,7 @@ export default function Write() {
           onClick={() => void newDraft()}
           className="rounded-lg bg-stone-800 px-5 py-2.5 text-sm text-white"
         >
-          새 글 시작
+          Start Writing
         </button>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </div>

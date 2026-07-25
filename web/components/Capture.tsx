@@ -103,7 +103,7 @@ export default function Capture() {
           onChange={(e) => setNeedsResearch(e.target.checked)}
           className="h-4 w-4 accent-stone-600"
         />
-        자료 조사가 필요하다
+        자료 조사
       </label>
 
       {needsResearch && (
@@ -125,7 +125,7 @@ export default function Capture() {
           className="shrink-0 rounded-lg bg-stone-800 px-4 py-2 text-sm text-white
                      disabled:bg-stone-300"
         >
-          저장 <span className="ml-1 opacity-60">⌘↵</span>
+          Save <span className="ml-1 opacity-60">⌘↵</span>
         </button>
       </div>
 

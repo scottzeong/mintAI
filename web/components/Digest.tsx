@@ -278,7 +278,7 @@ export default function Digest() {
   if (!current) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-10">
-        <h2 className="mb-1 text-sm font-semibold text-stone-700">소화 대기</h2>
+        <h2 className="mb-1 text-sm font-semibold text-stone-700">Digest Queue</h2>
         <p className="mb-5 text-xs text-stone-400">
           대기 큐가 길어지면 그게 R1 병목이다 (§8: 평균 5 이하)
         </p>
@@ -297,7 +297,7 @@ export default function Digest() {
                     onClick={() => void open(idea)}
                     className="shrink-0 rounded bg-stone-800 px-3 py-1.5 text-xs text-white"
                   >
-                    소화하기
+                    Digest
                   </button>
                 ) : (
                   <button
@@ -450,7 +450,7 @@ export default function Digest() {
             value={tags}
             onChange={(e) => setTags(e.target.value)}
             onPaste={blockPaste}
-            placeholder="태그 (쉼표 구분)"
+            placeholder="Tag (쉼표 구분)"
             className="mb-4 w-full rounded border border-stone-300 px-3 py-2 text-sm"
           />
 
