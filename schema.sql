@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS research_runs (
   sources_json  TEXT NOT NULL DEFAULT '[]',
   model         TEXT,
   ran_at        TEXT NOT NULL DEFAULT (datetime('now')),
+  error         TEXT,   -- 실패 사유 (docs/MVP.md §4.1). 성공 시 NULL
   purged_at     TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_runs_idea ON research_runs(idea_id);
@@ -56,6 +57,17 @@ CREATE TABLE IF NOT EXISTS drafts (
   body_md       TEXT NOT NULL DEFAULT '',
   updated_at    TEXT NOT NULL DEFAULT (datetime('now'))
 );
+
+-- ★ 계측 — §8 판정의 유일한 증거. 4주가 지난 뒤에는 소급 생성이 불가능하다.
+-- 상세: docs/MVP.md §2.2
+CREATE TABLE IF NOT EXISTS events (
+  id            INTEGER PRIMARY KEY,
+  kind          TEXT NOT NULL,
+                -- app_open | paste_blocked | digest_done | research_failed
+  meta          TEXT,
+  at            TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_events_kind_at ON events(kind, at);
 
 -- ── 전문 검색 (한국어 대응) ──────────────────────────────
 -- 기본 unicode61 tokenizer 는 한국어를 공백 단위로만 분절해 '거래비용' 같은

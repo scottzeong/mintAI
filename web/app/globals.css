@@ -1,0 +1,18 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-stone-50 text-stone-800;
+  }
+
+  textarea:focus,
+  input:focus {
+    @apply outline-none ring-2 ring-stone-400;
+  }
+}

@@ -13,10 +13,26 @@ node_modules/
 dist/
 .vite/
 
+# Next.js / Vercel
+.next/
+out/
+.vercel
+next-env.d.ts
+*.tsbuildinfo
+
+# Supabase CLI
+supabase/.temp/
+supabase/.branches/
+
 # Env / secrets
+# ⚠ anon 키는 공개돼도 안전하지만(권한은 RLS 가 준다),
+#    service_role 키는 RLS 를 통째로 우회한다. 절대 커밋하지 않는다.
 .env
 .env.*
 !.env.example
+
+# Claude Code 로컬 설정 (머신마다 다름)
+.claude/settings.local.json
 
 # Database — 저술 데이터. 별도 백업 전략 필요
 *.db

@@ -76,140 +76,125 @@ MVP에서도 **§2 원칙 1~5는 그대로 유지**한다. 특히:
 
 ## 2. 데이터 모델 (최소)
 
-```sql
--- 착상
-CREATE TABLE ideas (
-  id            INTEGER PRIMARY KEY,
-  raw_thought   TEXT NOT NULL,
-  question      TEXT,              -- 무엇을 더 알아야 하나 (nullable)
-  status        TEXT NOT NULL DEFAULT 'inbox',
-                                   -- inbox | researching | awaiting_digest | digested | archived
-  created_at    TEXT NOT NULL
-);
+**정본은 [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) 이다.**
+아래는 요약이며, 충돌하면 마이그레이션 파일이 이긴다.
 
--- AI 리서치 결과 ⚠ 휘발성
-CREATE TABLE research_runs (
-  id            INTEGER PRIMARY KEY,
-  idea_id       INTEGER NOT NULL REFERENCES ideas(id),
-  output_md     TEXT,              -- ★ 소화 시 NULL로 덮어씀
-  sources_json  TEXT NOT NULL,     -- [{url, title}] — 폐기하지 않음
-  model         TEXT,
-  ran_at        TEXT NOT NULL,
-  purged_at     TEXT
-);
+| 테이블 | 역할 |
+|---|---|
+| `ideas` | 착상. `status` 로 파이프라인 위치 표현 + `researching_since` (§4.1) |
+| `research_runs` | ⚠ 휘발성. `output_md` 는 소화 시 NULL 로 덮어씀 |
+| `cards` | ★ 인간이 쓴 것만. `search_blob` 생성 컬럼 포함 (§2.1) |
+| `sources` | 출처 (사실 데이터, 영구) |
+| `drafts` | 글 |
+| `events` | ★ 계측 — §8 판정의 유일한 증거 (§2.2) |
 
--- ★ 카드 — 인간이 쓴 것만
-CREATE TABLE cards (
-  id            INTEGER PRIMARY KEY,
-  idea_id       INTEGER REFERENCES ideas(id),
-  title         TEXT NOT NULL,
-  summary       TEXT NOT NULL,     -- 객관적 이해 (인간 작성)
-  my_take       TEXT,              -- 내 해석 (인간 작성)
-  tags          TEXT,              -- 쉼표 구분 (정규화는 나중에)
-  created_at    TEXT NOT NULL
-);
-
--- 출처 (사실 데이터, 영구)
-CREATE TABLE sources (
-  id            INTEGER PRIMARY KEY,
-  card_id       INTEGER NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
-  url           TEXT,
-  title         TEXT
-);
-
--- 글
-CREATE TABLE drafts (
-  id            INTEGER PRIMARY KEY,
-  title         TEXT NOT NULL,
-  body_md       TEXT NOT NULL DEFAULT '',
-  updated_at    TEXT NOT NULL
-);
-
--- 전문 검색 ★ 한국어 대응 (아래 §2.1 참조)
-CREATE VIRTUAL TABLE cards_fts USING fts5(
-  title, summary, my_take, tags,
-  content=cards, content_rowid=id,
-  tokenize="trigram"                 -- ★ 기본 unicode61은 한국어에서 작동 안 함
-);
-
--- 인덱스 동기화 트리거 (external content FTS는 자동 동기화되지 않음)
-CREATE TRIGGER cards_ai AFTER INSERT ON cards BEGIN
-  INSERT INTO cards_fts(rowid,title,summary,my_take,tags)
-  VALUES (new.id,new.title,new.summary,new.my_take,new.tags);
-END;
-CREATE TRIGGER cards_ad AFTER DELETE ON cards BEGIN
-  INSERT INTO cards_fts(cards_fts,rowid,title,summary,my_take,tags)
-  VALUES ('delete',old.id,old.title,old.summary,old.my_take,old.tags);
-END;
-CREATE TRIGGER cards_au AFTER UPDATE ON cards BEGIN
-  INSERT INTO cards_fts(cards_fts,rowid,title,summary,my_take,tags)
-  VALUES ('delete',old.id,old.title,old.summary,old.my_take,old.tags);
-  INSERT INTO cards_fts(rowid,title,summary,my_take,tags)
-  VALUES (new.id,new.title,new.summary,new.my_take,new.tags);
-END;
-```
-
-**5개 테이블.** PRD의 12개에서 줄였다.
+**6개 테이블.** PRD의 12개에서 줄였다. (`events` 는 저술 데이터가 아니라 계측용)
 
 **의도적으로 뺀 것:** `works`, `outline_nodes`, `card_links`, `card_assignments`,
-`excerpts`, `section_drafts`, `research_requests`(→`ideas`에 흡수),
-`embedding`, `confidence`, `card_type`, `status`(카드), 논증 5필드, 출처 메타 12필드.
+`excerpts`, `section_drafts`, `embedding`, `confidence`, `card_type`,
+논증 5필드, 출처 메타 12필드.
 
 > **`confidence`와 `card_type`을 뺀 이유:** 입력 시점에 판단을 강요하는 필드는
 > 전부 마찰이다. MVP는 마찰을 최소화해서 **H1(요약 마찰 감내)만 순수하게 측정**해야 한다.
-> 다른 마찰이 섞이면 실패 원인을 특정할 수 없다.
 
-### 2.1 ⚠ 한국어 전문 검색 — 실측으로 확인된 함정
+**전 테이블에 RLS 를 켠다.** 미인증이면 `auth.uid()` 가 null 이고 정책이 전부
+거짓이 되어 **0행이 보인다** — 기본값이 "아무것도 안 보임"이다.
 
-**SQLite FTS5 기본 설정은 한국어에서 사실상 작동하지 않는다.** 실측 결과:
+### 2.1 ⚠ 한국어 검색 — 결론은 살아남고, 코드는 사라졌다
 
-| tokenizer | `"신뢰"` (2자) | `"거래비용"` (어절 일부) | 문제 |
-|---|---|---|---|
-| `unicode61` (기본) | ✅ | **❌ 0건** | 공백 단위로만 분절 → `"거래비용이"`가 통째로 한 토큰 |
-| `trigram` | **❌ 0건** | ✅ | 3자 미만 검색어를 아예 처리 못 함 |
+**SQLite 시절의 실측 (2026-07-25, SQLite 3.53.1)**
+
+| tokenizer | `"신뢰"` (2자) | `"거래비용"` (어절 일부) |
+|---|---|---|
+| `unicode61` (기본) | ✅ | **❌ 0건** |
+| `trigram` | **❌ 0건** | ✅ |
 
 > `"신뢰"`, `"조직"`, `"권력"` 같은 **2글자 검색어는 한국어에서 가장 흔한 형태**다.
-> trigram 단독으로는 이게 전부 실패한다. 둘 다 단독으로는 쓸 수 없다.
+> 둘 다 단독으로는 쓸 수 없어서, 길이로 분기하는 하이브리드를 짜야 했다.
 
-**해결: 길이 기반 하이브리드**
+**Postgres 로 옮기면 분기가 필요 없다 (PostgreSQL 16.2 실측)**
 
-```python
-def fts_quote(q: str) -> str:
-    """FTS5 구문 안전 처리 — 큰따옴표 이스케이프 후 phrase로 감싼다.
-    이걸 빼면 공백 포함 검색어('회계 항목')가 깨지고, 따옴표 입력 시 SQL 오류."""
-    return '"' + q.replace('"', '""') + '"'
+`ILIKE '%q%'` 는 **검색어 길이와 무관하게 항상 정확하다.** `pg_trgm` GIN 인덱스는
+정확성이 아니라 **속도만** 담당하고 3자 이상에서 작동한다. 2자 검색은 순차 스캔으로
+떨어지지만 카드 수천 장까지 체감 지연이 없다.
 
-def search_cards(con, q: str):
-    q = q.strip()
-    if len(q) >= 3:
-        # FTS5 trigram — 부분어 매칭 가능, 인덱스 사용
-        return con.execute(
-            "SELECT c.* FROM cards_fts f JOIN cards c ON c.id = f.rowid "
-            "WHERE cards_fts MATCH ? ORDER BY rank", (fts_quote(q),)
-        ).fetchall()
-    # 2자 이하 — LIKE 폴백 (풀스캔이지만 카드 수천 장까지 체감 지연 없음)
-    like = f"%{q}%"
-    return con.execute(
-        "SELECT * FROM cards WHERE title LIKE ? OR summary LIKE ? "
-        "OR ifnull(my_take,'') LIKE ? OR ifnull(tags,'') LIKE ?",
-        (like, like, like, like)
-    ).fetchall()
+```sql
+-- cards.search_blob 은 생성 컬럼 (title+summary+my_take+tags)
+create index idx_cards_trgm on cards using gin (search_blob gin_trgm_ops);
+
+select * from cards
+ where search_blob ilike '%' || q || '%'
+ order by created_at desc;
 ```
 
-**검증 완료 (SQLite 3.53.1)**
+**즉 §2.1이 밝혀낸 것 중 살아남는 것은 코드가 아니라 판단이다:**
+*"2자 검색은 한국어에서 가장 흔하므로 반드시 지원해야 한다."*
+그 요구사항이 있었기에 Postgres 에서도 `ILIKE` 를 택했고, 무심코
+`to_tsvector('simple', ...)` 를 골랐다면 `unicode61` 과 똑같이 실패했을 것이다.
+
+**덤으로 사라진 것**
+
+| SQLite | Postgres |
+|---|---|
+| 동기화 트리거 3종 (INSERT/UPDATE/DELETE) | 생성 컬럼 — DB 가 알아서 갱신 |
+| `fts_quote()` 이스케이프 (없으면 SQL 오류) | 파라미터 바인딩으로 끝 |
+| 길이 기반 분기 | 없음 |
+
+**실측 검증 (`supabase/tests/run_tests.py`, 34/34 통과)**
 
 | 케이스 | 결과 |
 |---|---|
-| `신뢰` / `조직` (2자, LIKE 경로) | ✅ |
+| `신뢰` / `조직` (2자) | ✅ |
 | `거래비용` (어절 내부 부분어) | ✅ |
-| `회계 항목` (공백 포함 구문) | ✅ — `fts_quote` 필수 |
-| `따옴"표` (따옴표 이스케이프) | ✅ — 없으면 SQL 오류 |
-| UPDATE·DELETE 후 인덱스 동기화 | ✅ — 트리거 3종 필수 |
-| `integrity-check` | ✅ |
+| `회계 항목` (공백 포함 구문) | ✅ |
+| `따옴"표` (따옴표) | ✅ 오류 없음 |
+| UPDATE·DELETE 후 인덱스 동기화 | ✅ 생성 컬럼 자동 |
+| RLS 격리 (비소유자 롤로 검증) | ✅ |
 
-> **왜 임베딩 검색을 안 쓰나:** MVP 유예 항목이다. 카드 20~50장 규모에서는
-> 키워드 검색으로 충분하고, 임베딩은 API 의존성·비용·지연을 추가한다.
-> 카드 100장을 넘기면 그때 붙인다(§9).
+> **왜 임베딩 검색을 안 쓰나:** 여전히 유예 항목이다. 카드 20~50장 규모에서는
+> 키워드 검색으로 충분하고, 임베딩은 비용·지연을 추가한다. 100장을 넘기면 붙인다(§9).
+> Supabase 는 `pgvector` 를 지원하므로 그때 마이그레이션 하나면 된다.
+
+
+### 2.2 ⚠ 계측 — 이걸 Week 1에 안 넣으면 §8 판정이 불가능하다
+
+§8의 지표 중 **두 개는 DB만 봐서는 절대 알 수 없다.**
+
+| 지표 | DB로 계산 가능? |
+|---|---|
+| 카드 수 / 완성한 글 | ✅ `cards`, `drafts` |
+| 캡처 → 소화 전환율 | ✅ `ideas.status` |
+| **사용 일수 ≥ 12일** | ❌ 접속 기록이 어디에도 없음 |
+| **붙여넣기 시도 (H1의 직접 증거)** | ❌ 차단만 하고 버리면 증거가 사라짐 |
+| **소화 대기 큐 평균** | ❌ 현재값만 알 수 있고 과거 추이가 없음 |
+
+> **이건 나중에 붙일 수 없다.** 4주가 지난 뒤에는 그 4주의 접속 기록을 만들어낼 방법이 없다.
+> 계측이 빠진 채로 4주를 보내면, **실험을 하고도 결과를 읽을 수 없다.**
+
+**해결: `events` 테이블 하나.** 스케줄러도 별도 로그 파일도 쓰지 않는다.
+
+```ts
+// 앱 진입 시 1회 — 계측과 고아 복구를 DB 함수 하나로 (§4.1)
+await supabase.rpc('app_open')          // events(app_open, meta=대기 큐 길이)
+
+// 붙여넣기 차단 시 (§3.2) — H1이 거짓일 때 가장 먼저 나타나는 신호
+await supabase.from('events').insert({ kind: 'paste_blocked', meta: `idea:${id}` })
+```
+
+집계는 SQL 한 줄이다.
+
+```sql
+-- 사용 일수
+SELECT count(DISTINCT date(at)) FROM events WHERE kind='app_open';
+-- 소화 대기 큐 평균 (일별 첫 접속 기준)
+SELECT avg(meta::numeric) FROM events WHERE kind='app_open';
+-- 붙여넣기 시도
+SELECT count(*) FROM events WHERE kind='paste_blocked';
+```
+
+> **왜 붙여넣기 시도를 굳이 세나:** 이 숫자가 늘어난다는 건 *"읽고 내 언어로 쓰기"가
+> 견딜 만한 마찰이 아니라는 뜻*이다. 즉 **H1이 무너지는 순간을 가장 먼저 보여주는 지표**다.
+> 카드 수가 줄어드는 건 그 결과이지 원인이 아니다.
 
 ---
 
@@ -342,68 +327,156 @@ def search_cards(con, q: str):
 > 다만 **"다른 관점" 섹션은 남겼다.** 이건 학술 기능이 아니라 사고 습관이고,
 > 비용이 거의 안 드는데 글의 깊이를 크게 바꾼다.
 
----
+### 4.1 ⚠ "비동기 실행"을 무엇으로 하는가
 
-## 5. API
+검색 + LLM 은 30~60초가 걸린다. 이걸 어디서 돌릴지 정하지 않으면 막힌다.
+
+**결론: Supabase Edge Function. 큐도 워커도 두지 않는다.**
 
 ```
-POST   /api/ideas                 { raw_thought, question? }
-GET    /api/ideas?status=inbox
-POST   /api/ideas/{id}/research   → 비동기 리서치 실행
-GET    /api/ideas/{id}/run        → 휘발 자료 조회
-POST   /api/ideas/{id}/digest     ★ { title, summary, my_take, tags, source_ids[] }
-                                    → 카드 생성 + 자료 폐기 (원자적)
-GET    /api/cards?q=&tag=
-GET    /api/cards/{id}
-PUT    /api/cards/{id}
-DELETE /api/cards/{id}
-
-GET    /api/drafts
-POST   /api/drafts
-PUT    /api/drafts/{id}
+클라이언트 → functions/v1/research { idea_id }
+  └ ideas.status = 'researching', researching_since = now()
+  └ 검색 + LLM (30~60초)
+       성공 → research_runs 삽입, status = 'awaiting_digest'
+       실패 → research_runs(error=사유), status = 'inbox'
+클라이언트는 그동안 ideas.status 를 2초 간격으로 폴링
 ```
 
-**13개 엔드포인트.** PRD의 25개에서 축소.
+| 질문 | 답 |
+|---|---|
+| 왜 Vercel 함수가 아닌가 | Hobby 플랜 실행 제한이 30~60초 작업에 빠듯하다 |
+| 진행 상황은 어떻게 아나 | `ideas.status` 하나. 별도 job 테이블 없음 |
+| 실패하면? | `inbox` 로 복귀. **재시도 = 사용자가 버튼을 다시 누르는 것** |
+| 자동 재시도는? | **없다.** 실패 원인이 대개 키 누락·쿼터라 다시 걸어도 같은 이유로 실패한다 |
+| 함수가 죽어 갇히면? | ★ 아래 참조 |
+| 남의 착상에 리서치를 걸 수 있나 | 불가. 호출자 JWT 로 클라이언트를 만들어 RLS 를 태운다 |
 
----
+**★ 고아 복구 — 서버리스에는 '기동 시점'이 없다**
+
+로컬판은 서버가 뜰 때 `researching` 을 전부 되돌렸다. 서버리스에는 그 순간이 없다.
+함수가 타임아웃으로 죽으면 그 착상은 영원히 `researching` 에 갇혀 **다시 조사할 수도,
+소화할 수도 없게** 된다.
+
+그래서 `researching_since` 를 남기고, `app_open()` 이 앱 진입 때마다 오래된 것을
+되돌린다 (기본 10분). 계측과 같은 함수에 넣은 이유는 둘 다 "앱을 열 때 정확히 한 번"
+일어나야 하고, 나누면 하나를 빠뜨리기 쉽기 때문이다.
+
+> 고아 복구는 빠뜨려도 당장 아무 증상이 없다가, 몇 주 뒤 **"조사 버튼이 안 눌리는
+> 착상"** 으로 나타난다. 그때는 원인을 찾기 어렵다.
+
+
+## 5. 데이터 접근
+
+REST 엔드포인트를 직접 만들지 않는다. PostgREST 가 테이블을 그대로 노출하고,
+**여러 문장이 한 트랜잭션이어야 하는 것만 Postgres 함수로 뺀다.**
+
+```
+── 테이블 직접 접근 (RLS 로 보호) ──
+ideas          select · insert · update · delete
+cards          select · update · delete
+research_runs  select                       ← insert 는 Edge Function 만
+sources        select
+drafts         select · insert · update
+events         insert                       ← 계측
+
+── RPC (Postgres 함수) ──
+digest(idea_id, title, summary, my_take, tags, source_ids[])
+                              ★ 카드 생성 + 출처 승계 + 산문 폐기 + 상태 전이 (원자적)
+search_cards(q, tag)          한국어 검색 (§2.1)
+app_open(stale_minutes)       계측 기록 + 고아 복구, 대기 큐 길이 반환 (§2.2·§4.1)
+
+── Edge Function ──
+POST /functions/v1/research   { idea_id }   리서치 실행 (§4.1)
+```
+
+**함수 3개 + 엔드포인트 1개.** 로컬판의 15개 엔드포인트가 대부분 사라졌다 —
+CRUD 를 직접 쓸 필요가 없어졌기 때문이지, 기능을 뺀 게 아니다.
+
+> **왜 `digest` 만은 함수여야 하는가:** Supabase 클라이언트는 다중 문장 트랜잭션을
+> 만들 수 없다. 네 번 나눠 부르면 중간에 끊겼을 때 "카드는 생겼는데 산문이 남음"
+> (원칙 1 위반) 또는 "산문은 지웠는데 카드가 없음"(복구 불가)이 된다.
+> 게다가 폐기가 DB 안에 있으면 **어떤 클라이언트로도 건너뛸 수 없다.**
+> 애플리케이션 코드에 두는 것보다 강한 보장이다.
+
 
 ## 6. 기술 스택 (MVP)
 
+**2026-07-25 변경 — 로컬 SQLite → Vercel + Supabase.**
+
 | 영역 | 선택 |
 |---|---|
-| 백엔드 | Python 3.11 + FastAPI |
-| DB | **SQLite (표준 라이브러리)** — `sqlite-vec` 불필요 (임베딩 유예) |
-| 마이그레이션 | **없음** — 스키마 확정 전까지 [`schema.sql`](../schema.sql) 재생성 |
-| 프론트 | **React + TS + Vite + Tailwind** |
-| 에디터 | **`<textarea>` + marked.js** — TipTap 유예 (각주 기능 없으므로) |
-| LLM | Claude / GPT 어댑터 |
-| 검색 | 웹 검색 API |
-| 배포 | 로컬 `localhost:8787` |
+| 호스팅 | **Vercel** (Next.js App Router) |
+| DB | **Supabase Postgres** + RLS |
+| 인증 | **Supabase Auth 매직 링크** |
+| 서버 로직 | **Postgres 함수** (`digest`, `search_cards`, `app_open`) |
+| 리서치 실행 | **Supabase Edge Function** (§4.1) |
+| 프론트 | React 19 + TS + Tailwind |
+| 에디터 | `<textarea>` + marked.js — TipTap 유예 |
+| 마이그레이션 | `supabase/migrations/` (번호순 SQL) |
 
-**뺀 것:** sqlite-vec, Alembic, APScheduler, TipTap, Cytoscape, Pandoc, 임베딩 API.
+### 6.1 왜 옮겼는가
 
-> 의존성이 줄면 **설치 실패로 시작조차 못 하는 리스크**가 준다.
-> 개인 도구에서 이게 의외로 흔한 사망 원인이다.
+로컬판(FastAPI + SQLite)은 **의존성을 줄이면 시작 실패 위험이 준다**는 전제로 골랐다.
+그 전제가 실측에서 틀렸다. 실제로 겪은 것은 PowerShell 실행 정책, uv 기반 Python
+소멸로 깨진 venv, 중단된 `npm install` — **전부 로컬 툴체인 문제**였다.
+의존성을 줄여서 피하려던 위험이, 다른 층에서 그대로 나타났다.
 
----
+더 중요한 건 §0의 질문이다. **"4주 동안 계속 쓰게 되는가"를 재려면 실행 마찰이
+0에 가까워야 한다.** 터미널 두 개를 띄워야 글쓰기 도구가 열린다면, 안 쓰게 됐을 때
+"요약이 귀찮아서"인지 "띄우기가 귀찮아서"인지 구분할 수 없다. H1 측정이 오염된다.
+
+그리고 Capture 는 **떠오른 순간에** 기록해야 의미가 있는데, 로컬판은 그 순간에
+노트북 앞에 있기를 요구했다.
+
+### 6.2 옮기면서 치른 값
+
+| 항목 | 결과 |
+|---|---|
+| FastAPI 백엔드 500줄 | 폐기 — 대부분 Postgres 함수 3개로 흡수 |
+| FTS5 trigram 하이브리드 | 코드는 폐기, **판단은 승계** (§2.1) |
+| 인증 없음 (부록) | 철회 — 공개 URL 이므로 필수 |
+| 데이터가 내 디스크에만 | 철회 — Supabase 로 나간다 |
+
+> **부록의 "인증 없음 — 로컬 전용이므로 계속 불필요"는 이제 무효다.**
+> RLS 를 켜고 미인증 상태에서 0행이 보이는 것까지 실측으로 확인했다.
+
 
 ## 7. 개발 계획 (4주)
 
 ### Week 1 — 뼈대 + Capture
-- [ ] FastAPI + SQLite 스키마 + React 셋업
-- [ ] `POST /api/ideas`, 목록 조회
-- [ ] Capture 화면 (autofocus, 연속 입력)
+- [x] FastAPI + SQLite 스키마 + React 셋업
+- [x] `POST /api/ideas`, 목록 조회
+- [x] **계측 (`events` + `/api/stats`) — §2.2. 지금 안 넣으면 4주 뒤 판정 불가**
+- [x] Capture 화면 (autofocus, 연속 입력)
 - ✅ **검증:** 아이디어 10개를 3초 내로 각각 저장
+- ✅ **검증:** 접속 후 `SELECT count(*) FROM events WHERE kind='app_open'` ≥ 1
 
 ### Week 2 — 리서치 + Digest ★
-- [ ] 웹검색 + LLM 정리 파이프라인
-- [ ] Digest Workbench 좌우 분할
-- [ ] **붙여넣기 차단**
-- [ ] **`/digest` 원자적 트랜잭션 + 폐기**
-- ✅ **검증:** 카드 3장 생성 후 `SELECT output_md` → 전부 `NULL`
+- [x] 리서치 파이프라인 골격 (**BackgroundTasks, §4.1**) — 공급자 어댑터
+- [ ] 실제 공급자 연결 (현재 `mock`. `MINTAI_RESEARCH_PROVIDER` 로 교체)
+- [x] 기동 시 `researching` 고아 상태 복구
+- [x] Digest Workbench 좌우 분할
+- [x] **붙여넣기 차단 + `paste_blocked` 기록**
+- [x] **`/digest` 원자적 트랜잭션 + 폐기**
+- ✅ **검증:** 카드 3장 생성 후 `SELECT output_md` → 전부 `NULL` (API 경유)
+
+> **공급자가 `mock` 인 채로도 H1은 검증 가능하다** — 측정 대상은 "읽고 요약하는
+> 마찰"이지 리서치 품질이 아니다. 다만 실사용 4주를 시작하기 전에는 붙여야 한다.
+
+### Week 2.5 — 스택 이전 (계획에 없던 주간)
+
+- [x] Supabase 스키마 + `digest()` · `search_cards()` · `app_open()` 함수
+- [x] RLS 6개 정책 (비소유자 롤로 격리 실측)
+- [x] Next.js 앱 — Capture · Digest 이식, 매직 링크 인증
+- [x] Edge Function — 리서치 (§4.1)
+- ✅ **검증:** `supabase/tests/run_tests.py` 34/34 (PostgreSQL 16.2 실측)
+
+> **이 주간은 원래 계획에 없었다.** §7의 4주는 그만큼 뒤로 밀렸고, 그 값은
+> §6.1에 적어 두었다. 다만 §8 판정 기준과 계측은 하나도 바뀌지 않았다 —
+> **무엇을 재는지가 바뀌지 않았으므로 실험 자체는 유효하다.**
 
 ### Week 3 — Library + Write
-- [ ] FTS5 검색 (**trigram + LIKE 하이브리드, §2.1**), 카드 목록·상세·수정
+- [ ] `search_cards()` 연결, 카드 목록·상세·수정 (**§2.1**)
 - [ ] Write 화면, 자동저장, 카드 삽입
 - ✅ **검증:** 카드 5장 참조해 800자 글 1편 완성
 - ✅ **검증:** `"신뢰"`(2자) · `"거래비용"`(부분어) · `"회계 항목"`(공백) 전부 검색됨
@@ -420,14 +493,16 @@ PUT    /api/drafts/{id}
 
 ## 8. 판정 기준 (4주 후)
 
-| 지표 | 목표 | 측정 |
+| 지표 | 목표 | 측정 (§2.2) |
 |---|---|---|
-| 카드 수 | **≥ 20장** | `SELECT COUNT(*) FROM cards` |
-| 사용 일수 | **≥ 12일 / 28일** | 접속 로그 |
-| 캡처 → 소화 전환율 | **≥ 40%** | digested / ideas |
-| 소화 대기 큐 | **평균 ≤ 5** | 일별 스냅샷 |
-| 완성한 글 | **≥ 1편** (800자+) | drafts |
-| 붙여넣기 시도 | **기록만** | H1의 직접 증거 |
+| 카드 수 | **≥ 20장** | `SELECT count(*) FROM cards` |
+| 사용 일수 | **≥ 12일 / 28일** | `count(DISTINCT date(at)) … kind='app_open'` |
+| 캡처 → 소화 전환율 | **≥ 40%** | `ideas.status='digested'` / 전체 |
+| 소화 대기 큐 | **평균 ≤ 5** | `avg(meta) … kind='app_open'` |
+| 완성한 글 | **≥ 1편** (800자+) | `SELECT length(body_md) FROM drafts` |
+| 붙여넣기 시도 | **기록만** | `count(*) … kind='paste_blocked'` — H1의 직접 증거 |
+
+> 전부 `GET /api/stats` 하나로 나온다. **4주 뒤에 따로 집계 작업이 필요 없어야 한다.**
 
 ### 판정
 
