@@ -70,6 +70,8 @@ export interface StructuringRun {
 
 export interface Work {
   id: number
+  /** column | article | report | ebook | book — lib/formats.ts */
+  format: string
   title: string
   thesis: string | null
   audience: string | null

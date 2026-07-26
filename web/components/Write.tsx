@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Markdown from '@/components/Markdown'
 import BookWriter from '@/components/BookWriter'
+import { formatOf } from '@/lib/formats'
 import type { Card, Draft, Source, Work } from '@/lib/types'
 
 /**
@@ -70,7 +71,7 @@ export default function Write() {
                 : 'border border-stone-300 text-stone-500 hover:text-stone-700')
             }
           >
-            책 {works.length > 0 && <span className="opacity-60">{works.length}</span>}
+            구조 {works.length > 0 && <span className="opacity-60">{works.length}</span>}
           </button>
         </div>
       </div>
@@ -79,8 +80,8 @@ export default function Write() {
         <div className="mx-auto max-w-2xl px-6 py-10">
           {works.length === 0 ? (
             <p className="text-sm text-stone-500">
-              아직 확정된 책이 없습니다. Library 에서 <strong>Structuring</strong> 을
-              눌러 구조를 제안받으세요.
+              아직 확정된 글이 없습니다. Library 에서 <strong>Structuring</strong> 을
+              눌러 구조를 제안받으세요 — 카드 3장이면 칼럼부터 시작할 수 있습니다.
             </p>
           ) : (
             <ul className="divide-y divide-stone-200">
@@ -90,7 +91,13 @@ export default function Write() {
                     onClick={() => setOpenWork(w)}
                     className="w-full py-4 text-left hover:bg-stone-100/60"
                   >
-                    <p className="font-medium text-stone-800">{w.title}</p>
+                    <p className="font-medium text-stone-800">
+                      {w.title}
+                      <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs
+                                       font-normal text-stone-500">
+                        {formatOf(w.format).label}
+                      </span>
+                    </p>
                     {w.thesis && (
                       <p className="mt-1 text-sm text-stone-600">{w.thesis}</p>
                     )}

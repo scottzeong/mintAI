@@ -410,8 +410,8 @@ def main() -> int:
     }
     import json as _json
     rid = val(
-        "insert into structuring_runs(status, output_json, card_count, model, chars) "
-        "values ('ready', %s::jsonb, 3, 'test', 1000) returning id;",
+        "insert into structuring_runs(status, output_json, card_count, model, chars, format) "
+        "values ('ready', %s::jsonb, 3, 'test', 1000, 'report') returning id;",
         _json.dumps(payload, ensure_ascii=False),
     )
 
@@ -443,6 +443,19 @@ def main() -> int:
     check(val("select count(*) from events where kind='structure_confirmed';") == 1,
           "structure_confirmed 계측")
 
+    # ★ 형식 승계 — 제안은 특정 형식을 위해 만들어졌다
+    check(val("select format from works where id=%s;", wid) == "report",
+          "★ 제안이 만들어진 형식(report)을 책이 승계한다")
+    check(
+        fails("insert into works(title, format) values ('잘못된 형식','novel');") is not None,
+        "정의되지 않은 형식은 거부된다",
+    )
+    check(
+        val("select meta like '%%format:report%%' from events "
+            "where kind='structure_confirmed' limit 1;"),
+        "계측에도 형식이 남는다",
+    )
+
     check(fails("select confirm_structure(%s, 0);", rid) is not None,
           "이미 확정된 제안은 재확정 불가")
     check(fails("select confirm_structure(999999, 0);") is not None, "없는 run 은 예외")
@@ -463,7 +476,8 @@ def main() -> int:
     # 제목 수정률
     con.execute("update chapters set title='내가 고친 제목' where work_id=%s and seq=1", (wid,))
     prog = {r[0]: r for r in con.execute("select * from work_progress()").fetchall()}
-    check(prog[wid][3] == 1, f"★ 제목 수정 챕터 집계 ({prog[wid][3]}) — 0이면 받아쓰기다")
+    check(prog[wid][2] == "report", "work_progress 에 형식 포함")
+    check(prog[wid][4] == 1, f"★ 제목 수정 챕터 집계 ({prog[wid][4]}) — 0이면 받아쓰기다")
 
     s5 = val("select stats();")
     check("title_edit_rate" in s5 and "works" in s5, "stats() 에 Structuring 지표 포함")

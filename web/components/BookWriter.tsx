@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { formatOf } from '@/lib/formats'
 import type { Card, Chapter, Work } from '@/lib/types'
 
 const AUTOSAVE_MS = 800
@@ -28,6 +29,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
   const [error, setError] = useState<string | null>(null)
 
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const fmt = formatOf(work.format)
 
   const loadChapters = useCallback(async () => {
     const { data } = await supabase
@@ -72,7 +74,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
       const { error } = await supabase
         .from('chapters')
         .update({
-          title: nextTitle.trim() || `${current.seq}장`,
+          title: nextTitle.trim() || `${current.seq}${fmt.unit}`,
           body_md: nextBody,
           updated_at: new Date().toISOString(),
         })
@@ -128,12 +130,16 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
             ←
           </button>
           <span className="text-base font-semibold text-stone-900">{work.title}</span>
+          <span className="ml-2 rounded bg-stone-200 px-1.5 py-0.5 text-xs text-stone-600">
+            {fmt.label}
+          </span>
           {work.thesis && (
             <span className="ml-3 text-xs text-stone-400">{work.thesis}</span>
           )}
         </div>
         <span className="text-xs text-stone-400">
-          {totalChars.toLocaleString()}자 · 제목 수정 {editedCount}/{chapters.length}
+          {totalChars.toLocaleString()}자 / 목표 {fmt.length} · 제목 수정 {editedCount}/
+          {chapters.length}
         </span>
       </div>
 
@@ -161,7 +167,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
         <section className="max-h-[calc(100vh-12rem)] overflow-y-auto rounded-lg border
                             border-stone-200 bg-stone-50 p-4">
           <p className="mb-3 text-xs font-semibold text-stone-500">
-            이 장의 카드 {cards.length}장
+            이 {fmt.unit}의 카드 {cards.length}장
           </p>
           {cards.length === 0 ? (
             <p className="text-xs text-stone-400">배치된 카드가 없습니다.</p>
@@ -220,7 +226,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
               setBody(e.target.value)
               scheduleSave(title, e.target.value)
             }}
-            placeholder="왼쪽 카드를 보면서 이 장을 씁니다."
+            placeholder={`왼쪽 카드를 보면서 이 ${fmt.unit}을 씁니다.`}
             className="min-h-[26rem] w-full resize-none border-0 p-0 text-sm leading-7 focus:ring-0"
           />
 

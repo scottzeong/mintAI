@@ -142,7 +142,7 @@ select * from cards
 | `fts_quote()` 이스케이프 (없으면 SQL 오류) | 파라미터 바인딩으로 끝 |
 | 길이 기반 분기 | 없음 |
 
-**실측 검증 (`supabase/tests/run_tests.py`, 85/85 통과)**
+**실측 검증 (`supabase/tests/run_tests.py`, 89/89 통과)**
 
 | 케이스 | 결과 |
 |---|---|

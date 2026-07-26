@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { FORMATS, formatOf, MIN_CARDS_ANY } from '@/lib/formats'
 import type { Card, Proposal, StructuringRun } from '@/lib/types'
 
-export const MIN_CARDS_FOR_STRUCTURING = 50
+export { MIN_CARDS_ANY }
 
 /**
  * Structuring — 카드에서 책 구조를 제안받는다 (docs/STRUCTURING.md)
@@ -29,6 +30,14 @@ export default function Structuring({
   const [error, setError] = useState<string | null>(null)
   const [picked, setPicked] = useState<number | null>(null)
   const [showExcluded, setShowExcluded] = useState<number | null>(null)
+  // 쓸 수 있는 것 중 가장 큰 형식을 기본값으로 — 카드를 많이 모았으면 큰 글을
+  // 노리는 게 자연스럽고, 줄이는 건 클릭 한 번이다.
+  const [fmtKey, setFmtKey] = useState<string>(
+    () =>
+      [...FORMATS].reverse().find((f) => cards.length >= f.minCards)?.key ??
+      FORMATS[0].key,
+  )
+  const fmt = formatOf(fmtKey)
 
   const pollTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => () => clearTimeout(pollTimer.current), [])
@@ -44,7 +53,7 @@ export default function Structuring({
     // research 와 같은 패턴: 행을 먼저 만들고 던져놓은 뒤 폴링한다.
     const { data, error: insErr } = await supabase
       .from('structuring_runs')
-      .insert({ status: 'running' })
+      .insert({ status: 'running', format: fmtKey })
       .select()
       .single()
     if (insErr) {
@@ -95,7 +104,12 @@ export default function Structuring({
     if (!run) return
     const p = run.output_json?.proposals?.[index]
     if (!p) return
-    if (!window.confirm(`"${p.title}" 로 확정할까요?\n나머지 두 제안은 폐기됩니다.`)) return
+    if (
+      !window.confirm(
+        `"${p.title}" (${fmt.label}) 로 확정할까요?\n나머지 두 제안은 폐기됩니다.`,
+      )
+    )
+      return
 
     setBusy(true)
     const { data, error } = await supabase.rpc('confirm_structure', {
@@ -122,22 +136,70 @@ export default function Structuring({
       </button>
 
       {proposals.length === 0 && (
-        <div className="rounded-lg border border-stone-200 bg-white p-8 text-center">
-          <h2 className="text-lg font-semibold text-stone-800">책 구조 제안</h2>
-          <p className="mx-auto mt-2 max-w-md text-sm text-stone-500">
+        <div className="rounded-lg border border-stone-200 bg-white p-8">
+          <h2 className="text-lg font-semibold text-stone-800">무엇을 쓸까요</h2>
+          <p className="mt-2 text-sm text-stone-500">
             카드 {cards.length}장 전체를 읽고 서로 다른 구조 3개를 제안합니다.
             논지에 맞지 않는 카드는 이유와 함께 제외됩니다.
           </p>
-          <button
-            onClick={() => void start()}
-            disabled={busy}
-            className="mt-6 rounded-lg bg-stone-800 px-6 py-2.5 text-sm text-white
-                       disabled:bg-stone-300"
-          >
-            {busy ? '읽는 중… (1~3분)' : '구조 제안 받기'}
-          </button>
+
+          {/* 종류마다 최소 카드 수·구성 단위·분량이 다르다 (STRUCTURING.md §8) */}
+          <div className="mt-6 space-y-2">
+            {FORMATS.map((f) => {
+              const ok = cards.length >= f.minCards
+              const active = fmtKey === f.key
+              return (
+                <button
+                  key={f.key}
+                  onClick={() => ok && setFmtKey(f.key)}
+                  disabled={!ok || busy}
+                  className={
+                    'flex w-full items-baseline gap-3 rounded-lg border px-4 py-3 text-left ' +
+                    (active
+                      ? 'border-stone-800 bg-stone-50'
+                      : ok
+                        ? 'border-stone-200 hover:border-stone-400'
+                        : 'border-stone-100 opacity-50')
+                  }
+                >
+                  <span
+                    className={
+                      'text-sm font-medium ' + (ok ? 'text-stone-900' : 'text-stone-400')
+                    }
+                  >
+                    {f.label}
+                  </span>
+                  <span className="flex-1 text-xs text-stone-400">{f.hint}</span>
+                  <span className="shrink-0 text-xs text-stone-400">
+                    {f.unit} {f.units[0]}~{f.units[1]} · {f.length}
+                  </span>
+                  <span
+                    className={
+                      'shrink-0 text-xs ' + (ok ? 'text-stone-400' : 'text-amber-700')
+                    }
+                  >
+                    {ok ? `카드 ${f.minCards}+` : `${f.minCards - cards.length}장 더`}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-xs text-stone-400">
+              {fmt.unit} {fmt.units[0]}~{fmt.units[1]}개로 구성됩니다
+            </p>
+            <button
+              onClick={() => void start()}
+              disabled={busy || cards.length < fmt.minCards}
+              className="rounded-lg bg-stone-800 px-6 py-2.5 text-sm text-white
+                         disabled:bg-stone-300"
+            >
+              {busy ? '읽는 중… (1~3분)' : `${fmt.label} 구조 제안 받기`}
+            </button>
+          </div>
           {busy && (
-            <p className="mt-3 text-xs text-stone-400">
+            <p className="mt-3 text-right text-xs text-stone-400">
               카드를 전부 읽고 세 가지 구성을 만드는 중입니다. 창을 닫지 마세요.
             </p>
           )}
@@ -149,7 +211,7 @@ export default function Structuring({
         <>
           <div className="mb-5">
             <h2 className="text-lg font-semibold text-stone-800">
-              세 가지 구조 — 하나를 고르세요
+              {fmt.label} — 세 가지 구조 중 하나를 고르세요
             </h2>
             <p className="mt-1 text-sm text-stone-500">
               확정하면 나머지 둘은 폐기됩니다. 챕터 제목은 나중에 언제든 고칠 수 있습니다.
@@ -178,7 +240,7 @@ export default function Structuring({
                     )}
                     <p className="mt-2 flex flex-wrap gap-3 text-xs text-stone-400">
                       {p.audience && <span>{p.audience}</span>}
-                      <span>{p.chapters.length}개 장</span>
+                      <span>{fmt.unit} {p.chapters.length}개</span>
                       <span>카드 {used}장 사용</span>
                       {!!p.excluded?.length && (
                         <span className={exRate > 0.5 ? 'text-amber-700' : ''}>

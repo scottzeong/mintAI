@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { relativeTime } from '@/lib/time'
-import Structuring, { MIN_CARDS_FOR_STRUCTURING } from '@/components/Structuring'
+import Structuring from '@/components/Structuring'
+import { MIN_CARDS_ANY } from '@/lib/formats'
 import type { Card, Collection, Source, TagCount } from '@/lib/types'
 
 /**
@@ -279,11 +280,11 @@ export default function Library() {
                 결과가 나오고, 그 인상이 "이 기능은 쓸모없다"가 된다 (§1.3) */}
             <button
               onClick={() => setStructuring(true)}
-              disabled={allCards.length < MIN_CARDS_FOR_STRUCTURING}
+              disabled={allCards.length < MIN_CARDS_ANY}
               title={
-                allCards.length < MIN_CARDS_FOR_STRUCTURING
-                  ? `책 구조를 제안하려면 카드가 ${MIN_CARDS_FOR_STRUCTURING}장 이상 필요합니다 (현재 ${allCards.length}장)`
-                  : `전체 카드 ${allCards.length}장으로 책 구조를 제안받습니다`
+                allCards.length < MIN_CARDS_ANY
+                  ? `구조 제안은 카드 ${MIN_CARDS_ANY}장부터 (현재 ${allCards.length}장)`
+                  : `전체 카드 ${allCards.length}장으로 글의 구조를 제안받습니다`
               }
               className="shrink-0 rounded-lg bg-stone-800 px-3 py-2 text-sm text-white
                          disabled:bg-stone-200 disabled:text-stone-400"
@@ -292,10 +293,9 @@ export default function Library() {
             </button>
           </div>
 
-          {allCards.length < MIN_CARDS_FOR_STRUCTURING && (
+          {allCards.length < MIN_CARDS_ANY && (
             <p className="mb-4 text-xs text-stone-400">
-              책 구조 제안은 카드 {MIN_CARDS_FOR_STRUCTURING}장부터 — 현재{' '}
-              {allCards.length}장 (앞으로 {MIN_CARDS_FOR_STRUCTURING - allCards.length}장)
+              구조 제안은 카드 {MIN_CARDS_ANY}장부터 — 현재 {allCards.length}장
             </p>
           )}
 

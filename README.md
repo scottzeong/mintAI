@@ -45,7 +45,20 @@
 | **Digest** ★ | ✅ 좌우 분할 · 붙여넣기 차단 · 원자적 폐기 · **자료 버리기** |
 | **Library** | ✅ 한국어 검색 · 상세 · 수정 · 삭제 · **분류(태그·컬렉션)** |
 | **Write** | ✅ 낱글/책 두 모드 · 자동저장 · 카드 인용 삽입 |
-| **Structuring** | ✅ 카드 50장부터 · 구조 제안 3개 · 확정 시 나머지 폐기 |
+| **Structuring** | ✅ 글 종류 5단계 · 구조 제안 3개 · 확정 시 나머지 폐기 |
+
+### 글의 종류 (STRUCTURING.md §8)
+
+| 종류 | 최소 카드 | 구성 | 분량 |
+|---|---|---|---|
+| Column / Essay | 3장 | 단락 3~5 | 800~2,000자 |
+| Article / Post | 7장 | 섹션 3~6 | 2,000~5,000자 |
+| Report / Paper | 15장 | 절 4~8 | 5,000~15,000자 |
+| eBook / Monograph | 25장 | 장 5~9 | 20,000~50,000자 |
+| Book | 50장 | 장 8~14 | 60,000자 이상 |
+
+종류마다 최소 카드 수만 다른 게 아니라 **구성 단위의 개수·이름·분량이 전부 다르다.**
+정의는 `web/lib/formats.ts` 와 Edge Function 양쪽에 있고 **같은 값을 유지해야 한다.**
 
 2026-07-25, 로컬 FastAPI + SQLite 에서 **Vercel + Supabase** 로 옮겼다.
 이유와 대가는 [MVP.md §6.1 · §6.2](docs/MVP.md) 참조.
@@ -83,9 +96,10 @@ supabase/
   migrations/0004_classify.sql 카드 분류 — 컬렉션·태그 (§3.6)
   migrations/0005_research_kind.sql  자료 유형·길이 (RESEARCH.md)
   migrations/0006_structuring.sql    책·챕터·구조 제안 (STRUCTURING.md)
+  migrations/0007_work_format.sql    글의 종류 5단계 (§8)
   functions/research/        Edge Function (리서치)
   functions/structure/       Edge Function (구조 제안 — 웹 검색 없음, 원칙 4)
-  tests/run_tests.py         실제 Postgres 로 돌리는 검증 85종
+  tests/run_tests.py         실제 Postgres 로 돌리는 검증 89종
 docs/                     MVP.md · PRD.md
 ```
 
@@ -113,7 +127,7 @@ docs/                     MVP.md · PRD.md
 
 1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
 2. SQL Editor 에 `supabase/migrations/` 의 SQL 을 **번호 순서대로** 실행
-   (`0001` → `0002` → `0003` → `0004` → `0005` → `0006`)
+   (`0001` → … → `0007`, **번호 순서대로**)
 3. Authentication → Providers → **Email** 활성화, Confirm email 켜기
 4. Project Settings → API 에서 **Project URL** 과 **anon key** 복사
 
@@ -147,7 +161,7 @@ Supabase Authentication → URL Configuration 에 Vercel 도메인을
 
 ```bash
 pip install pgserver "psycopg[binary]"
-python supabase/tests/run_tests.py     # 85/85 — PostgreSQL 16.2 실측
+python supabase/tests/run_tests.py     # 89/89 — PostgreSQL 16.2 실측
 cd web && npm.cmd run build
 ```
 
