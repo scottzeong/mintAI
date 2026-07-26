@@ -191,6 +191,16 @@ comment on function confirm_structure(bigint, int) is
 -- ════════════════════════════════════════════════════════════
 -- 책 진단 — 구조를 얼마나 내 것으로 만들었나 (STRUCTURING.md §5)
 -- ════════════════════════════════════════════════════════════
+--
+-- ⚠ create or replace 는 OUT 파라미터(반환 행 타입)를 바꿀 수 없다.
+--   0007 이 여기에 format 컬럼을 더한다. 그래서 이 파일을 **나중에 다시 돌리면**
+--   0007 판과 형태가 달라 42P13 으로 죽는다. 먼저 지우고 만든다.
+--
+--   같은 함수를 두 마이그레이션이 건드리는 것 자체가 냄새다. 다만 이력을
+--   보존하는 쪽을 택했다 — 0006 을 고쳐 쓰면 "언제 무엇이 추가됐는지"가 사라진다.
+--   대신 **양쪽 모두 drop 을 앞에 둬서 순서와 무관하게 적용되게** 한다.
+drop function if exists work_progress();
+
 create or replace function work_progress()
 returns table (
   work_id       bigint,

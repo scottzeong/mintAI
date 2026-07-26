@@ -24,6 +24,8 @@ export default function Library() {
   const [selected, setSelected] = useState<Card | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** 조회 자체가 실패했는가 — "카드 0장"과 구분해야 한다 */
+  const [loadFailed, setLoadFailed] = useState(false)
 
   const [collections, setCollections] = useState<Collection[]>([])
   const [tags, setTags] = useState<TagCount[]>([])
@@ -66,10 +68,17 @@ export default function Library() {
       setLoading(false)
 
       if (error) {
+        // ⚠ 조회 실패를 "카드 없음"처럼 보여주면 안 된다.
+        //   실제로 겪은 사고: search_cards 시그니처가 안 맞아 RPC 가 실패했는데
+        //   화면에는 "아직 카드가 없습니다"가 떠서, 데이터가 사라진 줄 알았다.
+        //   빈 상태와 오류 상태는 원인도 대처도 완전히 다르다.
         setError(error.message)
+        setCards([])
+        setLoadFailed(true)
         return
       }
       setError(null)
+      setLoadFailed(false)
       const list = (data ?? []) as Card[]
       setCards(list)
 
@@ -299,10 +308,32 @@ export default function Library() {
             </p>
           )}
 
-          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
-
           {loading ? (
             <p className="text-sm text-stone-400">불러오는 중…</p>
+          ) : loadFailed ? (
+            // 오류일 때는 빈 상태 문구를 아예 띄우지 않는다
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+              <p className="text-sm font-medium text-red-800">
+                카드를 불러오지 못했습니다 — 데이터가 없는 것이 아닙니다
+              </p>
+              <p className="mt-1.5 break-words text-xs text-red-700">{error}</p>
+              {error?.includes('schema cache') && (
+                <p className="mt-2 text-xs text-red-700">
+                  DB 함수가 최신이 아닐 수 있습니다. Supabase SQL Editor 에서
+                  마이그레이션을 번호 순서대로 실행한 뒤{' '}
+                  <code className="rounded bg-red-100 px-1">
+                    notify pgrst, &apos;reload schema&apos;;
+                  </code>{' '}
+                  를 실행하세요.
+                </p>
+              )}
+              <button
+                onClick={() => void load(q, activeCollection, activeTags)}
+                className="mt-3 rounded border border-red-300 px-3 py-1 text-xs text-red-800"
+              >
+                다시 시도
+              </button>
+            </div>
           ) : cards.length === 0 ? (
             <p className="text-sm text-stone-400">
               {q || filtered
