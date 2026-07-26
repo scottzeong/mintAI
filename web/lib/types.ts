@@ -63,6 +63,18 @@ export interface Stats {
   long_drafts: number
 }
 
+/** docs/RESEARCH.md §1 — 질문 유형 8종 */
+export const KIND_LABELS: Record<string, string> = {
+  concept: '개념',
+  causal: '인과·관계',
+  history: '역사·전개',
+  person: '인물',
+  event: '사건',
+  compare: '비교·대조',
+  data: '현황·데이터',
+  debate: '논쟁',
+}
+
 export interface ResearchRun {
   id: number
   idea_id: number
@@ -70,6 +82,10 @@ export interface ResearchRun {
   output_md: string | null
   sources_json: Source[]
   model: string | null
+  /** 질문 유형. 파싱 실패 시 null — 분류는 부가 정보이지 자료의 조건이 아니다 */
+  kind: string | null
+  /** 자료 길이. output_md 가 폐기돼도 남는다 (RESEARCH.md §0.1) */
+  chars: number | null
   error: string | null
   ran_at: string
   purged_at: string | null

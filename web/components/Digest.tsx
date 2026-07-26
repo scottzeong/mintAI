@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { logEvent } from '@/lib/events'
 import Markdown from '@/components/Markdown'
-import type { Idea, ResearchRun } from '@/lib/types'
+import { KIND_LABELS, type Idea, type ResearchRun } from '@/lib/types'
 
 /**
  * Digest Workbench — 이 도구의 핵심 화면 (docs/MVP.md §3.2)
@@ -331,17 +331,33 @@ export default function Digest() {
         ← 큐로
       </button>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      {/* 자료가 3,000자가 되면서 좌우 높이가 크게 어긋난다. 좌측은 따로 스크롤시키고
+          우측은 sticky 로 붙여, **읽으면서 바로 옆에 쓸 수 있는** 상태를 유지한다.
+          이게 깨지면 읽고 → 스크롤 올려서 → 쓰기가 되고, 그 자체가 H1 마찰이다. */}
+      <div className="grid items-start gap-5 md:grid-cols-2">
         {/* 좌: 휘발성 */}
         <section
           className={
-            'rounded-lg border border-dashed border-stone-300 bg-stone-100/70 p-5 ' +
+            'max-h-[calc(100vh-9rem)] overflow-y-auto rounded-lg border border-dashed ' +
+            'border-stone-300 bg-stone-100/70 p-5 ' +
             'transition-opacity duration-300 ' +
             (purging ? 'opacity-0' : 'opacity-100')
           }
         >
           <header className="mb-3 flex items-center justify-between text-xs">
-            <span className="font-semibold text-stone-500">AI 자료</span>
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-stone-500">AI 자료</span>
+              {/* 유형 뱃지 — 어떤 구조로 정리됐는지 미리 알면 골라 읽기 쉽다
+                  (RESEARCH.md §0.1: 3,000자를 감당하는 근거가 바로 이것) */}
+              {run?.kind && KIND_LABELS[run.kind] && (
+                <span className="rounded bg-stone-200 px-1.5 py-0.5 text-stone-600">
+                  {KIND_LABELS[run.kind]}
+                </span>
+              )}
+              {!!run?.chars && (
+                <span className="text-stone-400">{run.chars.toLocaleString()}자</span>
+              )}
+            </div>
             <div className="flex items-center gap-3">
               <span className="text-amber-700">⏳ 소화하면 삭제됩니다</span>
               {run?.output_md && (
@@ -408,7 +424,7 @@ export default function Digest() {
         </section>
 
         {/* 우: 영구 */}
-        <section className="rounded-lg border border-stone-300 bg-white p-5">
+        <section className="rounded-lg border border-stone-300 bg-white p-5 md:sticky md:top-6">
           <header className="mb-3 flex items-center justify-between text-xs">
             <span className="font-semibold text-stone-700">내 요약</span>
             <span className="text-stone-500">✍ 영구 저장</span>

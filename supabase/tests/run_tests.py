@@ -264,9 +264,9 @@ def main() -> int:
     expected_keys = {
         "ideas", "cards", "drafts", "pending_digest", "digest_rate",
         "active_days", "avg_queue", "paste_blocked", "research_failed",
-        "discarded", "discard_rate", "long_drafts",
+        "discarded", "discard_rate", "avg_chars", "long_drafts",
     }
-    check(set(s) == expected_keys, f"지표 12종 반환 ({len(s)}개)")
+    check(set(s) == expected_keys, f"지표 13종 반환 ({len(s)}개)")
     check(s["long_drafts"] == 1, f"800자 이상 글 집계 ({s['long_drafts']})")
     check(s["active_days"] == 1, f"사용 일수 ({s['active_days']})")
     check(s["paste_blocked"] == 0, "붙여넣기 시도 집계")
@@ -356,8 +356,37 @@ def main() -> int:
     check(val("select count(*) from cards where id=%s;", ids[0]) == 1,
           "컬렉션을 지워도 카드는 남는다")
 
-    # ══════════════ 10. RLS ══════════════
-    print("\n10. RLS — 남의 데이터가 보이면 안 된다")
+    # ══════════════ 10. 자료 유형·길이 (RESEARCH.md) ══════════════
+    print("\n10. 리서치 자료 유형·길이 (RESEARCH.md)")
+    iid5 = val("insert into ideas(raw_thought) values ('유형 테스트') returning id;")
+    con.execute(
+        "insert into research_runs(idea_id, output_md, sources_json, kind, chars) "
+        "values (%s, '> **유형:** 인과·관계\n\n## 메커니즘\n...', '[]'::jsonb, 'causal', 2980);",
+        (iid5,),
+    )
+    check(val("select kind from research_runs where idea_id=%s;", iid5) == "causal",
+          "유형이 저장된다")
+
+    # ★ 핵심: 폐기해도 길이가 남아야 한다
+    con.execute("select discard_research(%s);", (iid5,))
+    row = con.execute(
+        "select output_md, chars, kind from research_runs where idea_id=%s", (iid5,)
+    ).fetchone()
+    check(row[0] is None, "폐기 후 output_md 는 NULL")
+    check(row[1] == 2980,
+          "★ 폐기 후에도 chars 가 남는다 — 분량이 병목에 미친 영향을 사후에 잴 수 있다")
+    check(row[2] == "causal", "폐기 후에도 kind 가 남는다 — 유형별 폐기율 계산 가능")
+
+    by_kind = {r[0]: r for r in con.execute("select * from research_by_kind()").fetchall()}
+    check("causal" in by_kind, f"유형별 집계 ({list(by_kind)})")
+    check(by_kind["causal"][4] == 1, "유형별 폐기 건수 집계")
+
+    s4 = val("select stats();")
+    check("avg_chars" in s4, "stats() 에 평균 자료 길이 포함")
+    check(s4["avg_chars"] > 0, f"평균 자료 길이 ({s4['avg_chars']})")
+
+    # ══════════════ 11. RLS ══════════════
+    print("\n11. RLS — 남의 데이터가 보이면 안 된다")
     con.execute("update _test_ctx set uid=%s", (other,))
     check(val("select count(*) from cards;") == 0, "다른 사용자에게는 카드 0건")
     check(val("select count(*) from search_cards('협력비용');") == 0, "검색도 격리됨")
