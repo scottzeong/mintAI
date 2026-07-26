@@ -56,8 +56,8 @@ export default function Write() {
             className={
               'rounded px-3 py-1.5 text-xs ' +
               (mode === 'draft'
-                ? 'bg-stone-800 text-white'
-                : 'border border-stone-300 text-stone-500 hover:text-stone-700')
+                ? 'bg-mint-800 text-white'
+                : 'border border-mint-300 text-mint-500 hover:text-mint-700')
             }
           >
             낱글
@@ -67,8 +67,8 @@ export default function Write() {
             className={
               'rounded px-3 py-1.5 text-xs ' +
               (mode === 'book'
-                ? 'bg-stone-800 text-white'
-                : 'border border-stone-300 text-stone-500 hover:text-stone-700')
+                ? 'bg-mint-800 text-white'
+                : 'border border-mint-300 text-mint-500 hover:text-mint-700')
             }
           >
             구조 {works.length > 0 && <span className="opacity-60">{works.length}</span>}
@@ -79,27 +79,27 @@ export default function Write() {
       {mode === 'book' ? (
         <div className="mx-auto max-w-2xl px-6 py-10">
           {works.length === 0 ? (
-            <p className="text-sm text-stone-500">
+            <p className="text-sm text-mint-500">
               아직 확정된 글이 없습니다. Library 에서 <strong>Structuring</strong> 을
               눌러 구조를 제안받으세요 — 카드 3장이면 칼럼부터 시작할 수 있습니다.
             </p>
           ) : (
-            <ul className="divide-y divide-stone-200">
+            <ul className="divide-y divide-mint-200">
               {works.map((w) => (
                 <li key={w.id}>
                   <button
                     onClick={() => setOpenWork(w)}
-                    className="w-full py-4 text-left hover:bg-stone-100/60"
+                    className="w-full py-4 text-left hover:bg-mint-100/60"
                   >
-                    <p className="font-medium text-stone-800">
+                    <p className="font-medium text-mint-800">
                       {w.title}
-                      <span className="ml-2 rounded bg-stone-100 px-1.5 py-0.5 text-xs
-                                       font-normal text-stone-500">
+                      <span className="ml-2 rounded bg-mint-100 px-1.5 py-0.5 text-xs
+                                       font-normal text-mint-500">
                         {formatOf(w.format).label}
                       </span>
                     </p>
                     {w.thesis && (
-                      <p className="mt-1 text-sm text-stone-600">{w.thesis}</p>
+                      <p className="mt-1 text-sm text-mint-600">{w.thesis}</p>
                     )}
                   </button>
                 </li>
@@ -259,10 +259,10 @@ function DraftWriter() {
   if (!current) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-20 text-center">
-        <p className="mb-5 text-sm text-stone-500">아직 쓰기 시작한 글이 없습니다.</p>
+        <p className="mb-5 text-sm text-mint-500">아직 쓰기 시작한 글이 없습니다.</p>
         <button
           onClick={() => void newDraft()}
-          className="rounded-lg bg-stone-800 px-5 py-2.5 text-sm text-white"
+          className="rounded-lg bg-mint-800 px-5 py-2.5 text-sm text-white"
         >
           Start Writing
         </button>
@@ -282,8 +282,8 @@ function DraftWriter() {
             className={
               'rounded px-2.5 py-1 text-xs ' +
               (d.id === current.id
-                ? 'bg-stone-800 text-white'
-                : 'border border-stone-300 text-stone-500 hover:text-stone-700')
+                ? 'bg-mint-800 text-white'
+                : 'border border-mint-300 text-mint-500 hover:text-mint-700')
             }
           >
             {d.title}
@@ -291,7 +291,7 @@ function DraftWriter() {
         ))}
         <button
           onClick={() => void newDraft()}
-          className="rounded px-2 py-1 text-xs text-stone-400 hover:text-stone-600"
+          className="rounded px-2 py-1 text-xs text-mint-400 hover:text-mint-600"
         >
           + 새 글
         </button>
@@ -299,7 +299,7 @@ function DraftWriter() {
 
       <div className="grid gap-5 md:grid-cols-[1.6fr_1fr]">
         {/* 좌: 에디터 */}
-        <section className="rounded-lg border border-stone-300 bg-white p-5">
+        <section className="rounded-lg border border-mint-300 bg-white p-5">
           <input
             value={title}
             onChange={(e) => {
@@ -311,7 +311,7 @@ function DraftWriter() {
           />
 
           {preview ? (
-            <div className="prose prose-sm prose-stone min-h-[28rem] max-w-none leading-7">
+            <div className="prose prose-sm prose-mint min-h-[28rem] max-w-none leading-7">
               <Markdown>{body}</Markdown>
             </div>
           ) : (
@@ -327,19 +327,19 @@ function DraftWriter() {
             />
           )}
 
-          <div className="mt-4 flex items-center justify-between border-t border-stone-200 pt-3 text-xs">
-            <span className={chars >= 800 ? 'text-stone-600' : 'text-stone-400'}>
+          <div className="mt-4 flex items-center justify-between border-t border-mint-200 pt-3 text-xs">
+            <span className={chars >= 800 ? 'text-mint-600' : 'text-mint-400'}>
               {chars.toLocaleString()}자
               {chars >= 800 && ' ✓ 800자'}
             </span>
             <div className="flex items-center gap-3">
               <button
                 onClick={() => setPreview((p) => !p)}
-                className="text-stone-400 hover:text-stone-600"
+                className="text-mint-400 hover:text-mint-600"
               >
                 {preview ? '편집' : '미리보기'}
               </button>
-              <span className={saved ? 'text-stone-400' : 'text-amber-600'}>
+              <span className={saved ? 'text-mint-400' : 'text-amber-600'}>
                 {saved ? '자동저장 ✓' : '저장 중…'}
               </span>
             </div>
@@ -357,25 +357,25 @@ function DraftWriter() {
               searchTimer.current = setTimeout(() => void searchCards(e.target.value), 250)
             }}
             placeholder="🔍  카드 검색"
-            className="mb-3 w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm"
+            className="mb-3 w-full rounded-lg border border-mint-300 bg-white px-3 py-2 text-sm"
           />
 
           <div className="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
             {cards.length === 0 ? (
-              <p className="text-sm text-stone-400">카드가 없습니다.</p>
+              <p className="text-sm text-mint-400">카드가 없습니다.</p>
             ) : (
               cards.map((c) => (
                 <div
                   key={c.id}
-                  className="rounded-lg border border-stone-200 bg-white p-3"
+                  className="rounded-lg border border-mint-200 bg-white p-3"
                 >
-                  <p className="text-sm font-medium text-stone-800">{c.title}</p>
-                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-stone-500">
+                  <p className="text-sm font-medium text-mint-800">{c.title}</p>
+                  <p className="mt-1 line-clamp-3 text-xs leading-relaxed text-mint-500">
                     {c.summary}
                   </p>
                   <button
                     onClick={() => void insertCard(c)}
-                    className="mt-2 text-xs text-stone-500 hover:text-stone-900"
+                    className="mt-2 text-xs text-mint-500 hover:text-mint-900"
                   >
                     {used.has(c.id) ? '다시 삽입' : '본문에 삽입'} →
                   </button>
@@ -384,7 +384,7 @@ function DraftWriter() {
             )}
           </div>
 
-          <p className="mt-3 text-xs text-stone-400">사용한 카드: {used.size}</p>
+          <p className="mt-3 text-xs text-mint-400">사용한 카드: {used.size}</p>
         </section>
       </div>
     </div>

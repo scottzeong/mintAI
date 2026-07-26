@@ -8,11 +8,11 @@
   }
 
   body {
-    @apply bg-stone-50 text-stone-800;
+    @apply bg-mint-50 text-mint-800;
   }
 
   textarea:focus,
   input:focus {
-    @apply outline-none ring-2 ring-stone-400;
+    @apply outline-none ring-2 ring-mint-400;
   }
 }

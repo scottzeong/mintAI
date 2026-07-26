@@ -43,9 +43,9 @@ function Shell() {
 
   return (
     <div className="min-h-screen">
-      <header className="border-b border-stone-200 bg-white">
+      <header className="border-b border-mint-200 bg-white">
         <nav className="mx-auto flex max-w-2xl items-center gap-1 px-6">
-          <span className="mr-4 py-3 text-sm font-semibold tracking-tight text-stone-900">
+          <span className="mr-4 py-3 text-sm font-semibold tracking-tight text-mint-600">
             mintAI
           </span>
           {SCREENS.map((s) => (
@@ -55,8 +55,8 @@ function Shell() {
               className={
                 'relative border-b-2 px-3 py-3 text-sm transition-colors ' +
                 (screen === s.id
-                  ? 'border-stone-800 text-stone-900'
-                  : 'border-transparent text-stone-400 hover:text-stone-600')
+                  ? 'border-mint-800 text-mint-900'
+                  : 'border-transparent text-mint-400 hover:text-mint-600')
               }
             >
               {s.label}
@@ -69,7 +69,7 @@ function Shell() {
           ))}
           <button
             onClick={() => void supabase.auth.signOut()}
-            className="ml-auto py-3 text-xs text-stone-300 hover:text-stone-500"
+            className="ml-auto py-3 text-xs text-mint-300 hover:text-mint-500"
           >
             로그아웃
           </button>

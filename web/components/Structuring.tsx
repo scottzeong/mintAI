@@ -130,15 +130,15 @@ export default function Structuring({
     <div className="mx-auto max-w-5xl px-6 py-8">
       <button
         onClick={onClose}
-        className="mb-4 text-xs text-stone-400 hover:text-stone-600"
+        className="mb-4 text-xs text-mint-400 hover:text-mint-600"
       >
         ← Library 로
       </button>
 
       {proposals.length === 0 && (
-        <div className="rounded-lg border border-stone-200 bg-white p-8">
-          <h2 className="text-lg font-semibold text-stone-800">무엇을 쓸까요</h2>
-          <p className="mt-2 text-sm text-stone-500">
+        <div className="rounded-lg border border-mint-200 bg-white p-8">
+          <h2 className="text-lg font-semibold text-mint-800">무엇을 쓸까요</h2>
+          <p className="mt-2 text-sm text-mint-500">
             카드 {cards.length}장 전체를 읽고 서로 다른 구조 3개를 제안합니다.
             논지에 맞지 않는 카드는 이유와 함께 제외됩니다.
           </p>
@@ -156,26 +156,26 @@ export default function Structuring({
                   className={
                     'flex w-full items-baseline gap-3 rounded-lg border px-4 py-3 text-left ' +
                     (active
-                      ? 'border-stone-800 bg-stone-50'
+                      ? 'border-mint-800 bg-mint-50'
                       : ok
-                        ? 'border-stone-200 hover:border-stone-400'
-                        : 'border-stone-100 opacity-50')
+                        ? 'border-mint-200 hover:border-mint-400'
+                        : 'border-mint-100 opacity-50')
                   }
                 >
                   <span
                     className={
-                      'text-sm font-medium ' + (ok ? 'text-stone-900' : 'text-stone-400')
+                      'text-sm font-medium ' + (ok ? 'text-mint-900' : 'text-mint-400')
                     }
                   >
                     {f.label}
                   </span>
-                  <span className="flex-1 text-xs text-stone-400">{f.hint}</span>
-                  <span className="shrink-0 text-xs text-stone-400">
+                  <span className="flex-1 text-xs text-mint-400">{f.hint}</span>
+                  <span className="shrink-0 text-xs text-mint-400">
                     {f.unit} {f.units[0]}~{f.units[1]} · {f.length}
                   </span>
                   <span
                     className={
-                      'shrink-0 text-xs ' + (ok ? 'text-stone-400' : 'text-amber-700')
+                      'shrink-0 text-xs ' + (ok ? 'text-mint-400' : 'text-amber-700')
                     }
                   >
                     {ok ? `카드 ${f.minCards}+` : `${f.minCards - cards.length}장 더`}
@@ -186,20 +186,20 @@ export default function Structuring({
           </div>
 
           <div className="mt-6 flex items-center justify-between">
-            <p className="text-xs text-stone-400">
+            <p className="text-xs text-mint-400">
               {fmt.unit} {fmt.units[0]}~{fmt.units[1]}개로 구성됩니다
             </p>
             <button
               onClick={() => void start()}
               disabled={busy || cards.length < fmt.minCards}
-              className="rounded-lg bg-stone-800 px-6 py-2.5 text-sm text-white
-                         disabled:bg-stone-300"
+              className="rounded-lg bg-mint-800 px-6 py-2.5 text-sm text-white
+                         disabled:bg-mint-200 disabled:text-mint-500"
             >
               {busy ? '읽는 중… (1~3분)' : `${fmt.label} 구조 제안 받기`}
             </button>
           </div>
           {busy && (
-            <p className="mt-3 text-right text-xs text-stone-400">
+            <p className="mt-3 text-right text-xs text-mint-400">
               카드를 전부 읽고 세 가지 구성을 만드는 중입니다. 창을 닫지 마세요.
             </p>
           )}
@@ -210,10 +210,10 @@ export default function Structuring({
       {proposals.length > 0 && (
         <>
           <div className="mb-5">
-            <h2 className="text-lg font-semibold text-stone-800">
+            <h2 className="text-lg font-semibold text-mint-800">
               {fmt.label} — 세 가지 구조 중 하나를 고르세요
             </h2>
-            <p className="mt-1 text-sm text-stone-500">
+            <p className="mt-1 text-sm text-mint-500">
               확정하면 나머지 둘은 폐기됩니다. 챕터 제목은 나중에 언제든 고칠 수 있습니다.
             </p>
           </div>
@@ -227,18 +227,18 @@ export default function Structuring({
                   key={i}
                   className={
                     'rounded-lg border bg-white p-5 transition-colors ' +
-                    (picked === i ? 'border-stone-800' : 'border-stone-200')
+                    (picked === i ? 'border-mint-800' : 'border-mint-200')
                   }
                 >
                   <button
                     onClick={() => setPicked(picked === i ? null : i)}
                     className="w-full text-left"
                   >
-                    <h3 className="text-base font-semibold text-stone-900">{p.title}</h3>
+                    <h3 className="text-base font-semibold text-mint-900">{p.title}</h3>
                     {p.thesis && (
-                      <p className="mt-1 text-sm text-stone-600">{p.thesis}</p>
+                      <p className="mt-1 text-sm text-mint-600">{p.thesis}</p>
                     )}
-                    <p className="mt-2 flex flex-wrap gap-3 text-xs text-stone-400">
+                    <p className="mt-2 flex flex-wrap gap-3 text-xs text-mint-400">
                       {p.audience && <span>{p.audience}</span>}
                       <span>{fmt.unit} {p.chapters.length}개</span>
                       <span>카드 {used}장 사용</span>
@@ -261,21 +261,21 @@ export default function Structuring({
                   )}
 
                   {picked === i && (
-                    <div className="mt-4 border-t border-stone-200 pt-4">
+                    <div className="mt-4 border-t border-mint-200 pt-4">
                       <ol className="space-y-2.5">
                         {p.chapters.map((ch, j) => (
                           <li key={j} className="text-sm">
-                            <span className="mr-2 text-stone-400">{j + 1}</span>
-                            <span className="font-medium text-stone-800">{ch.title}</span>
+                            <span className="mr-2 text-mint-400">{j + 1}</span>
+                            <span className="font-medium text-mint-800">{ch.title}</span>
                             {ch.gist && (
-                              <p className="ml-6 mt-0.5 text-xs text-stone-500">{ch.gist}</p>
+                              <p className="ml-6 mt-0.5 text-xs text-mint-500">{ch.gist}</p>
                             )}
                             <p className="ml-6 mt-1 flex flex-wrap gap-1">
                               {(ch.card_ids ?? []).map((id) => (
                                 <span
                                   key={id}
                                   title={cardById.get(id)?.summary}
-                                  className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-600"
+                                  className="rounded bg-mint-100 px-1.5 py-0.5 text-xs text-mint-600"
                                 >
                                   {cardById.get(id)?.title ?? `#${id}`}
                                 </span>
@@ -291,15 +291,15 @@ export default function Structuring({
                             onClick={() =>
                               setShowExcluded(showExcluded === i ? null : i)
                             }
-                            className="text-xs text-stone-400 hover:text-stone-700"
+                            className="text-xs text-mint-400 hover:text-mint-700"
                           >
                             제외된 카드 {p.excluded.length}장 {showExcluded === i ? '▲' : '▼'}
                           </button>
                           {showExcluded === i && (
                             <ul className="mt-2 space-y-1.5">
                               {p.excluded.map((e) => (
-                                <li key={e.card_id} className="text-xs text-stone-500">
-                                  <span className="text-stone-700">
+                                <li key={e.card_id} className="text-xs text-mint-500">
+                                  <span className="text-mint-700">
                                     {cardById.get(e.card_id)?.title ?? `#${e.card_id}`}
                                   </span>
                                   {' — '}
@@ -314,8 +314,8 @@ export default function Structuring({
                       <button
                         onClick={() => void confirmProposal(i)}
                         disabled={busy}
-                        className="mt-5 w-full rounded-lg bg-stone-800 py-2.5 text-sm
-                                   text-white disabled:bg-stone-300"
+                        className="mt-5 w-full rounded-lg bg-mint-800 py-2.5 text-sm
+                                   text-white disabled:bg-mint-200 disabled:text-mint-500"
                       >
                         Confirm — 이 구조로 시작
                       </button>

@@ -182,10 +182,10 @@ export default function Library() {
         <aside className="space-y-6 text-sm">
           <div>
             <div className="mb-2 flex items-center justify-between">
-              <h3 className="text-xs uppercase tracking-wider text-stone-400">Collection</h3>
+              <h3 className="text-xs uppercase tracking-wider text-mint-400">Collection</h3>
               <button
                 onClick={() => void createCollection()}
-                className="text-xs text-stone-400 hover:text-stone-700"
+                className="text-xs text-mint-400 hover:text-mint-700"
               >
                 + 새로
               </button>
@@ -197,8 +197,8 @@ export default function Library() {
                   className={
                     'w-full rounded px-2 py-1 text-left ' +
                     (activeCollection === null
-                      ? 'bg-stone-200 text-stone-900'
-                      : 'text-stone-600 hover:bg-stone-100')
+                      ? 'bg-mint-200 text-mint-900'
+                      : 'text-mint-600 hover:bg-mint-100')
                   }
                 >
                   전체
@@ -211,16 +211,16 @@ export default function Library() {
                     className={
                       'flex-1 rounded px-2 py-1 text-left ' +
                       (activeCollection === c.id
-                        ? 'bg-stone-200 text-stone-900'
-                        : 'text-stone-600 hover:bg-stone-100')
+                        ? 'bg-mint-200 text-mint-900'
+                        : 'text-mint-600 hover:bg-mint-100')
                     }
                   >
                     {c.name}
-                    <span className="ml-1.5 text-xs text-stone-400">{c.n}</span>
+                    <span className="ml-1.5 text-xs text-mint-400">{c.n}</span>
                   </button>
                   <button
                     onClick={() => void deleteCollection(c.id, c.name)}
-                    className="invisible px-1 text-xs text-stone-300 hover:text-red-600
+                    className="invisible px-1 text-xs text-mint-300 hover:text-red-600
                                group-hover:visible"
                     title="Collection 삭제"
                   >
@@ -229,25 +229,25 @@ export default function Library() {
                 </li>
               ))}
               {collections.length === 0 && (
-                <li className="px-2 py-1 text-xs text-stone-400">아직 없습니다</li>
+                <li className="px-2 py-1 text-xs text-mint-400">아직 없습니다</li>
               )}
             </ul>
           </div>
 
           <div>
-            <h3 className="mb-2 text-xs uppercase tracking-wider text-stone-400">
+            <h3 className="mb-2 text-xs uppercase tracking-wider text-mint-400">
               Tag
               {activeTags.length > 0 && (
                 <button
                   onClick={() => setActiveTags([])}
-                  className="ml-2 normal-case text-stone-400 hover:text-stone-700"
+                  className="ml-2 normal-case text-mint-400 hover:text-mint-700"
                 >
                   해제
                 </button>
               )}
             </h3>
             {tags.length === 0 ? (
-              <p className="px-2 text-xs text-stone-400">아직 없습니다</p>
+              <p className="px-2 text-xs text-mint-400">아직 없습니다</p>
             ) : (
               <div className="flex flex-wrap gap-1.5">
                 {tags.map((t) => (
@@ -257,8 +257,8 @@ export default function Library() {
                     className={
                       'rounded-full px-2 py-0.5 text-xs ' +
                       (activeTags.includes(t.tag)
-                        ? 'bg-stone-800 text-white'
-                        : 'bg-stone-100 text-stone-600 hover:bg-stone-200')
+                        ? 'bg-mint-800 text-white'
+                        : 'bg-mint-100 text-mint-600 hover:bg-mint-200')
                     }
                   >
                     {t.tag}
@@ -268,7 +268,7 @@ export default function Library() {
               </div>
             )}
             {activeTags.length > 1 && (
-              <p className="mt-2 px-1 text-xs text-stone-400">
+              <p className="mt-2 px-1 text-xs text-mint-400">
                 Tag 를 여러 개 고르면 <strong>전부 만족</strong>하는 카드만 남습니다
               </p>
             )}
@@ -282,9 +282,9 @@ export default function Library() {
               value={q}
               onChange={(e) => onSearch(e.target.value)}
               placeholder="🔍  카드 검색 — 두 글자도 됩니다"
-              className="flex-1 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm"
+              className="flex-1 rounded-lg border border-mint-300 bg-white px-4 py-2.5 text-sm"
             />
-            <span className="shrink-0 text-sm text-stone-400">{cards.length}장</span>
+            <span className="shrink-0 text-sm text-mint-400">{cards.length}장</span>
             {/* 카드 수가 부족하면 비활성 — 카드 5장으로 만든 책 구조는 우스운
                 결과가 나오고, 그 인상이 "이 기능은 쓸모없다"가 된다 (§1.3) */}
             <button
@@ -295,21 +295,21 @@ export default function Library() {
                   ? `구조 제안은 카드 ${MIN_CARDS_ANY}장부터 (현재 ${allCards.length}장)`
                   : `전체 카드 ${allCards.length}장으로 글의 구조를 제안받습니다`
               }
-              className="shrink-0 rounded-lg bg-stone-800 px-3 py-2 text-sm text-white
-                         disabled:bg-stone-200 disabled:text-stone-400"
+              className="shrink-0 rounded-lg bg-mint-800 px-3 py-2 text-sm text-white
+                         disabled:bg-mint-200 disabled:text-mint-400"
             >
               Structuring
             </button>
           </div>
 
           {allCards.length < MIN_CARDS_ANY && (
-            <p className="mb-4 text-xs text-stone-400">
+            <p className="mb-4 text-xs text-mint-400">
               구조 제안은 카드 {MIN_CARDS_ANY}장부터 — 현재 {allCards.length}장
             </p>
           )}
 
           {loading ? (
-            <p className="text-sm text-stone-400">불러오는 중…</p>
+            <p className="text-sm text-mint-400">불러오는 중…</p>
           ) : loadFailed ? (
             // 오류일 때는 빈 상태 문구를 아예 띄우지 않는다
             <div className="rounded-lg border border-red-200 bg-red-50 p-4">
@@ -335,24 +335,24 @@ export default function Library() {
               </button>
             </div>
           ) : cards.length === 0 ? (
-            <p className="text-sm text-stone-400">
+            <p className="text-sm text-mint-400">
               {q || filtered
                 ? '조건에 맞는 카드가 없습니다.'
                 : '아직 카드가 없습니다. Digest 에서 자료를 소화하면 여기에 쌓입니다.'}
             </p>
           ) : (
-            <ul className="divide-y divide-stone-200">
+            <ul className="divide-y divide-mint-200">
               {cards.map((c) => (
                 <li key={c.id}>
                   <button
                     onClick={() => setSelected(c)}
-                    className="w-full py-4 text-left hover:bg-stone-100/60"
+                    className="w-full py-4 text-left hover:bg-mint-100/60"
                   >
-                    <p className="font-medium text-stone-800">{c.title}</p>
-                    <p className="mt-1 line-clamp-2 text-sm text-stone-600">{c.summary}</p>
-                    <p className="mt-1.5 flex items-center gap-3 text-xs text-stone-400">
+                    <p className="font-medium text-mint-800">{c.title}</p>
+                    <p className="mt-1 line-clamp-2 text-sm text-mint-600">{c.summary}</p>
+                    <p className="mt-1.5 flex items-center gap-3 text-xs text-mint-400">
                       {c.tags && (
-                        <span className="text-stone-500">
+                        <span className="text-mint-500">
                           {c.tags
                             .split(',')
                             .map((t) => `#${t.trim()}`)
@@ -460,7 +460,7 @@ function CardDetail({
     <div className="mx-auto max-w-2xl px-6 py-8">
       <button
         onClick={() => onClose(false)}
-        className="mb-4 text-xs text-stone-400 hover:text-stone-600"
+        className="mb-4 text-xs text-mint-400 hover:text-mint-600"
       >
         ← 목록으로
       </button>
@@ -468,39 +468,39 @@ function CardDetail({
       <input
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="mb-4 w-full rounded border border-stone-300 bg-white px-3 py-2 text-base font-medium"
+        className="mb-4 w-full rounded border border-mint-300 bg-white px-3 py-2 text-base font-medium"
       />
 
-      <label className="mb-1 block text-xs text-stone-500">요약</label>
+      <label className="mb-1 block text-xs text-mint-500">요약</label>
       <textarea
         value={summary}
         onChange={(e) => setSummary(e.target.value)}
         rows={6}
-        className="mb-4 w-full resize-none rounded border border-stone-300 bg-white px-3 py-2 text-sm leading-relaxed"
+        className="mb-4 w-full resize-none rounded border border-mint-300 bg-white px-3 py-2 text-sm leading-relaxed"
       />
 
-      <label className="mb-1 block text-xs text-stone-500">내 생각</label>
+      <label className="mb-1 block text-xs text-mint-500">내 생각</label>
       <textarea
         value={myTake}
         onChange={(e) => setMyTake(e.target.value)}
         rows={4}
-        className="mb-4 w-full resize-none rounded border border-stone-300 bg-white px-3 py-2 text-sm leading-relaxed"
+        className="mb-4 w-full resize-none rounded border border-mint-300 bg-white px-3 py-2 text-sm leading-relaxed"
       />
 
       <input
         value={tags}
         onChange={(e) => setTags(e.target.value)}
         placeholder="Tag (쉼표 구분)"
-        className="mb-5 w-full rounded border border-stone-300 bg-white px-3 py-2 text-sm"
+        className="mb-5 w-full rounded border border-mint-300 bg-white px-3 py-2 text-sm"
       />
 
       {/* 컬렉션 — 여러 곳에 동시에 속할 수 있다 */}
-      <div className="mb-5 rounded-lg border border-stone-200 bg-white p-4">
-        <p className="mb-2 text-xs font-semibold text-stone-500">
-          Collection <span className="font-normal text-stone-400">— 여러 곳에 넣어도 됩니다</span>
+      <div className="mb-5 rounded-lg border border-mint-200 bg-white p-4">
+        <p className="mb-2 text-xs font-semibold text-mint-500">
+          Collection <span className="font-normal text-mint-400">— 여러 곳에 넣어도 됩니다</span>
         </p>
         {collections.length === 0 ? (
-          <p className="text-xs text-stone-400">
+          <p className="text-xs text-mint-400">
             아직 Collection 이 없습니다. 목록 화면 좌측에서 만들 수 있습니다.
           </p>
         ) : (
@@ -509,14 +509,14 @@ function CardDetail({
               <label
                 key={c.id}
                 className="flex cursor-pointer items-center gap-1.5 rounded-full border
-                           border-stone-200 px-2.5 py-1 text-sm text-stone-600
-                           hover:border-stone-400"
+                           border-mint-200 px-2.5 py-1 text-sm text-mint-600
+                           hover:border-mint-400"
               >
                 <input
                   type="checkbox"
                   checked={member.has(c.id)}
                   onChange={(e) => void toggleCollection(c.id, e.target.checked)}
-                  className="h-3.5 w-3.5 accent-stone-600"
+                  className="h-3.5 w-3.5 accent-mint-600"
                 />
                 {c.name}
               </label>
@@ -526,8 +526,8 @@ function CardDetail({
       </div>
 
       {sources.length > 0 && (
-        <div className="mb-5 rounded-lg border border-stone-200 bg-white p-4">
-          <p className="mb-2 text-xs font-semibold text-stone-500">출처</p>
+        <div className="mb-5 rounded-lg border border-mint-200 bg-white p-4">
+          <p className="mb-2 text-xs font-semibold text-mint-500">출처</p>
           <ul className="space-y-1.5">
             {sources.map((s) => (
               <li key={s.id} className="text-sm">
@@ -536,12 +536,12 @@ function CardDetail({
                     href={s.url}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="text-stone-600 underline decoration-stone-300 hover:text-stone-900"
+                    className="text-mint-600 underline decoration-mint-300 hover:text-mint-900"
                   >
                     {s.title || s.url}
                   </a>
                 ) : (
-                  <span className="text-stone-600">{s.title}</span>
+                  <span className="text-mint-600">{s.title}</span>
                 )}
               </li>
             ))}
@@ -562,7 +562,7 @@ function CardDetail({
         <button
           onClick={() => void save()}
           disabled={!dirty || busy}
-          className="rounded-lg bg-stone-800 px-5 py-2 text-sm text-white disabled:bg-stone-300"
+          className="rounded-lg bg-mint-800 px-5 py-2 text-sm text-white disabled:bg-mint-200 disabled:text-mint-500"
         >
           {dirty ? 'Save' : '변경 없음'}
         </button>

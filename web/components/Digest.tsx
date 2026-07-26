@@ -278,24 +278,24 @@ export default function Digest() {
   if (!current) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-10">
-        <h2 className="mb-1 text-sm font-semibold text-stone-700">Digest Queue</h2>
-        <p className="mb-5 text-xs text-stone-400">
+        <h2 className="mb-1 text-sm font-semibold text-mint-700">Digest Queue</h2>
+        <p className="mb-5 text-xs text-mint-400">
           대기 큐가 길어지면 그게 R1 병목이다 (§8: 평균 5 이하)
         </p>
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         {queue.length === 0 ? (
-          <p className="text-sm text-stone-400">
+          <p className="text-sm text-mint-400">
             대기 중인 착상이 없습니다. Capture 에서 먼저 기록하세요.
           </p>
         ) : (
-          <ul className="divide-y divide-stone-200">
+          <ul className="divide-y divide-mint-200">
             {queue.map((idea) => (
               <li key={idea.id} className="flex items-center gap-3 py-3">
-                <span className="flex-1 text-stone-700">{idea.raw_thought}</span>
+                <span className="flex-1 text-mint-700">{idea.raw_thought}</span>
                 {idea.status === 'awaiting_digest' ? (
                   <button
                     onClick={() => void open(idea)}
-                    className="shrink-0 rounded bg-stone-800 px-3 py-1.5 text-xs text-white"
+                    className="shrink-0 rounded bg-mint-800 px-3 py-1.5 text-xs text-white"
                   >
                     Digest
                   </button>
@@ -303,8 +303,8 @@ export default function Digest() {
                   <button
                     onClick={() => void research(idea)}
                     disabled={busy || idea.status === 'researching'}
-                    className="shrink-0 rounded border border-stone-300 px-3 py-1.5 text-xs
-                               text-stone-600 disabled:opacity-40"
+                    className="shrink-0 rounded border border-mint-300 px-3 py-1.5 text-xs
+                               text-mint-600 disabled:opacity-40"
                   >
                     {idea.status === 'researching' ? '조사 중…' : '자료 조사'}
                   </button>
@@ -326,7 +326,7 @@ export default function Digest() {
           setRun(null)
           resetForm()
         }}
-        className="mb-3 text-xs text-stone-400 hover:text-stone-600"
+        className="mb-3 text-xs text-mint-400 hover:text-mint-600"
       >
         ← 큐로
       </button>
@@ -339,23 +339,23 @@ export default function Digest() {
         <section
           className={
             'max-h-[calc(100vh-9rem)] overflow-y-auto rounded-lg border border-dashed ' +
-            'border-stone-300 bg-stone-100/70 p-5 ' +
+            'border-mint-300 bg-mint-100/70 p-5 ' +
             'transition-opacity duration-300 ' +
             (purging ? 'opacity-0' : 'opacity-100')
           }
         >
           <header className="mb-3 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-stone-500">AI 자료</span>
+              <span className="font-semibold text-mint-500">AI 자료</span>
               {/* 유형 뱃지 — 어떤 구조로 정리됐는지 미리 알면 골라 읽기 쉽다
                   (RESEARCH.md §0.1: 3,000자를 감당하는 근거가 바로 이것) */}
               {run?.kind && KIND_LABELS[run.kind] && (
-                <span className="rounded bg-stone-200 px-1.5 py-0.5 text-stone-600">
+                <span className="rounded bg-mint-200 px-1.5 py-0.5 text-mint-600">
                   {KIND_LABELS[run.kind]}
                 </span>
               )}
               {!!run?.chars && (
-                <span className="text-stone-400">{run.chars.toLocaleString()}자</span>
+                <span className="text-mint-400">{run.chars.toLocaleString()}자</span>
               )}
             </div>
             <div className="flex items-center gap-3">
@@ -365,7 +365,7 @@ export default function Digest() {
                   onClick={() => void discard(false)}
                   disabled={busy}
                   title="카드를 만들지 않고 자료만 버립니다. 착상은 큐에 남습니다."
-                  className="rounded border border-stone-300 px-2 py-0.5 text-stone-500
+                  className="rounded border border-mint-300 px-2 py-0.5 text-mint-500
                              hover:border-red-300 hover:text-red-600 disabled:opacity-40"
                 >
                   버리기
@@ -374,19 +374,19 @@ export default function Digest() {
             </div>
           </header>
 
-          <p className="mb-3 text-sm font-medium text-stone-700">
+          <p className="mb-3 text-sm font-medium text-mint-700">
             Q. {current.question || current.raw_thought}
           </p>
 
           {/* 마크다운으로 렌더링한다. 날것으로 두면 `**`·`>` 가 그대로 보여
               읽기가 불편해지고, 그 마찰이 H1 측정에 섞인다 (§0.1). */}
-          <div className="prose prose-sm prose-stone max-w-none text-stone-600">
+          <div className="prose prose-sm prose-mint max-w-none text-mint-600">
             {run?.output_md ? <Markdown>{run.output_md}</Markdown> : <p>자료 없음</p>}
           </div>
 
           {sources.length > 0 && (
-            <div className="mt-5 border-t border-stone-300 pt-3">
-              <p className="mb-2 text-xs font-semibold text-stone-500">
+            <div className="mt-5 border-t border-mint-300 pt-3">
+              <p className="mb-2 text-xs font-semibold text-mint-500">
                 출처 — 체크한 것만 카드에 승계됩니다 (원칙 2)
               </p>
               <ul className="space-y-1.5">
@@ -401,9 +401,9 @@ export default function Digest() {
                         else next.delete(i)
                         setChecked(next)
                       }}
-                      className="h-4 w-4 accent-stone-600"
+                      className="h-4 w-4 accent-mint-600"
                     />
-                    <span className="flex-1 truncate text-stone-600">
+                    <span className="flex-1 truncate text-mint-600">
                       {s.title || s.url}
                     </span>
                     {s.url && (
@@ -411,7 +411,7 @@ export default function Digest() {
                         href={s.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-stone-400 hover:text-stone-600"
+                        className="text-xs text-mint-400 hover:text-mint-600"
                       >
                         ↗
                       </a>
@@ -424,10 +424,10 @@ export default function Digest() {
         </section>
 
         {/* 우: 영구 */}
-        <section className="rounded-lg border border-stone-300 bg-white p-5 md:sticky md:top-6">
+        <section className="rounded-lg border border-mint-300 bg-white p-5 md:sticky md:top-6">
           <header className="mb-3 flex items-center justify-between text-xs">
-            <span className="font-semibold text-stone-700">내 요약</span>
-            <span className="text-stone-500">✍ 영구 저장</span>
+            <span className="font-semibold text-mint-700">내 요약</span>
+            <span className="text-mint-500">✍ 영구 저장</span>
           </header>
 
           <input
@@ -435,10 +435,10 @@ export default function Digest() {
             onChange={(e) => setTitle(e.target.value)}
             onPaste={blockPaste}
             placeholder="제목"
-            className="mb-3 w-full rounded border border-stone-300 px-3 py-2 text-sm"
+            className="mb-3 w-full rounded border border-mint-300 px-3 py-2 text-sm"
           />
 
-          <label className="mb-1 block text-xs text-stone-500">
+          <label className="mb-1 block text-xs text-mint-500">
             요약 — 무엇을 이해했나
           </label>
           <textarea
@@ -446,11 +446,11 @@ export default function Digest() {
             onChange={(e) => setSummary(e.target.value)}
             onPaste={blockPaste}
             rows={7}
-            className="mb-3 w-full resize-none rounded border border-stone-300 px-3 py-2
+            className="mb-3 w-full resize-none rounded border border-mint-300 px-3 py-2
                        text-sm leading-relaxed"
           />
 
-          <label className="mb-1 block text-xs text-stone-500">
+          <label className="mb-1 block text-xs text-mint-500">
             내 생각 — 이걸로 뭘 할까
           </label>
           <textarea
@@ -458,7 +458,7 @@ export default function Digest() {
             onChange={(e) => setMyTake(e.target.value)}
             onPaste={blockPaste}
             rows={4}
-            className="mb-3 w-full resize-none rounded border border-stone-300 px-3 py-2
+            className="mb-3 w-full resize-none rounded border border-mint-300 px-3 py-2
                        text-sm leading-relaxed"
           />
 
@@ -467,7 +467,7 @@ export default function Digest() {
             onChange={(e) => setTags(e.target.value)}
             onPaste={blockPaste}
             placeholder="Tag (쉼표 구분)"
-            className="mb-4 w-full rounded border border-stone-300 px-3 py-2 text-sm"
+            className="mb-4 w-full rounded border border-mint-300 px-3 py-2 text-sm"
           />
 
           {error && <p className="mb-2 text-sm text-red-600">{error}</p>}
@@ -475,8 +475,8 @@ export default function Digest() {
           <button
             onClick={() => void submit()}
             disabled={!canSubmit}
-            className="w-full rounded-lg bg-stone-800 py-2.5 text-sm text-white
-                       disabled:bg-stone-300"
+            className="w-full rounded-lg bg-mint-800 py-2.5 text-sm text-white
+                       disabled:bg-mint-200 disabled:text-mint-500"
           >
             소화 완료 — 왼쪽 삭제
           </button>
@@ -484,7 +484,7 @@ export default function Digest() {
           <button
             onClick={() => void discard(true)}
             disabled={busy}
-            className="mt-2 w-full py-1.5 text-xs text-stone-400 hover:text-red-600
+            className="mt-2 w-full py-1.5 text-xs text-mint-400 hover:text-red-600
                        disabled:opacity-40"
           >
             이 착상은 접는다 — 자료 폐기 + 보관
@@ -495,7 +495,7 @@ export default function Digest() {
       {toast && (
         <div
           role="status"
-          className="fixed bottom-8 left-1/2 -translate-x-1/2 rounded-lg bg-stone-900
+          className="fixed bottom-8 left-1/2 -translate-x-1/2 rounded-lg bg-mint-900
                      px-5 py-3 text-sm text-white shadow-lg"
         >
           {toast}

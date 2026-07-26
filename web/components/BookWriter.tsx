@@ -109,7 +109,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
 
   if (!current) {
     return (
-      <div className="mx-auto max-w-2xl px-6 py-20 text-center text-sm text-stone-500">
+      <div className="mx-auto max-w-2xl px-6 py-20 text-center text-sm text-mint-500">
         챕터가 없습니다.
         <button onClick={onExit} className="ml-2 underline">
           돌아가기
@@ -125,19 +125,19 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
         <div>
           <button
             onClick={onExit}
-            className="mr-3 text-xs text-stone-400 hover:text-stone-600"
+            className="mr-3 text-xs text-mint-400 hover:text-mint-600"
           >
             ←
           </button>
-          <span className="text-base font-semibold text-stone-900">{work.title}</span>
-          <span className="ml-2 rounded bg-stone-200 px-1.5 py-0.5 text-xs text-stone-600">
+          <span className="text-base font-semibold text-mint-900">{work.title}</span>
+          <span className="ml-2 rounded bg-mint-200 px-1.5 py-0.5 text-xs text-mint-600">
             {fmt.label}
           </span>
           {work.thesis && (
-            <span className="ml-3 text-xs text-stone-400">{work.thesis}</span>
+            <span className="ml-3 text-xs text-mint-400">{work.thesis}</span>
           )}
         </div>
-        <span className="text-xs text-stone-400">
+        <span className="text-xs text-mint-400">
           {totalChars.toLocaleString()}자 / 목표 {fmt.length} · 제목 수정 {editedCount}/
           {chapters.length}
         </span>
@@ -152,8 +152,8 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
             className={
               'rounded px-2.5 py-1 text-xs ' +
               (c.id === current.id
-                ? 'bg-stone-800 text-white'
-                : 'border border-stone-300 text-stone-500 hover:text-stone-700')
+                ? 'bg-mint-800 text-white'
+                : 'border border-mint-300 text-mint-500 hover:text-mint-700')
             }
           >
             {c.seq}. {c.title}
@@ -165,24 +165,24 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
       <div className="grid items-start gap-5 md:grid-cols-[1fr_1.4fr]">
         {/* 좌: 이 챕터의 카드 */}
         <section className="max-h-[calc(100vh-12rem)] overflow-y-auto rounded-lg border
-                            border-stone-200 bg-stone-50 p-4">
-          <p className="mb-3 text-xs font-semibold text-stone-500">
+                            border-mint-200 bg-mint-50 p-4">
+          <p className="mb-3 text-xs font-semibold text-mint-500">
             이 {fmt.unit}의 카드 {cards.length}장
           </p>
           {cards.length === 0 ? (
-            <p className="text-xs text-stone-400">배치된 카드가 없습니다.</p>
+            <p className="text-xs text-mint-400">배치된 카드가 없습니다.</p>
           ) : (
             <ul className="space-y-2.5">
               {cards.map((c) => (
-                <li key={c.id} className="rounded border border-stone-200 bg-white p-3">
-                  <p className="text-sm font-medium text-stone-800">{c.title}</p>
-                  <p className="mt-1 text-xs leading-relaxed text-stone-600">{c.summary}</p>
+                <li key={c.id} className="rounded border border-mint-200 bg-white p-3">
+                  <p className="text-sm font-medium text-mint-800">{c.title}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-mint-600">{c.summary}</p>
                   {c.my_take && (
-                    <p className="mt-1.5 text-xs italic text-stone-500">{c.my_take}</p>
+                    <p className="mt-1.5 text-xs italic text-mint-500">{c.my_take}</p>
                   )}
                   <button
                     onClick={() => insertCard(c)}
-                    className="mt-2 text-xs text-stone-500 hover:text-stone-900"
+                    className="mt-2 text-xs text-mint-500 hover:text-mint-900"
                   >
                     본문에 삽입 →
                   </button>
@@ -193,7 +193,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
         </section>
 
         {/* 우: 집필 */}
-        <section className="rounded-lg border border-stone-300 bg-white p-5 md:sticky md:top-6">
+        <section className="rounded-lg border border-mint-300 bg-white p-5 md:sticky md:top-6">
           <input
             value={title}
             onChange={(e) => {
@@ -205,10 +205,10 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
 
           {/* ★ AI 원안과 다르면 표시한다 (STRUCTURING.md §0.2) */}
           {current.proposed_title && (
-            <p className="mb-3 mt-1 text-xs text-stone-400">
+            <p className="mb-3 mt-1 text-xs text-mint-400">
               {edited ? (
                 <>
-                  <span className="text-stone-600">내가 고친 제목</span> · AI 원안:{' '}
+                  <span className="text-mint-600">내가 고친 제목</span> · AI 원안:{' '}
                   {current.proposed_title}
                 </>
               ) : (
@@ -217,7 +217,7 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
             </p>
           )}
           {current.gist && (
-            <p className="mb-3 text-xs text-stone-400">{current.gist}</p>
+            <p className="mb-3 text-xs text-mint-400">{current.gist}</p>
           )}
 
           <textarea
@@ -230,10 +230,10 @@ export default function BookWriter({ work, onExit }: { work: Work; onExit: () =>
             className="min-h-[26rem] w-full resize-none border-0 p-0 text-sm leading-7 focus:ring-0"
           />
 
-          <div className="mt-4 flex items-center justify-between border-t border-stone-200
+          <div className="mt-4 flex items-center justify-between border-t border-mint-200
                           pt-3 text-xs">
-            <span className="text-stone-400">{body.length.toLocaleString()}자</span>
-            <span className={saved ? 'text-stone-400' : 'text-amber-600'}>
+            <span className="text-mint-400">{body.length.toLocaleString()}자</span>
+            <span className={saved ? 'text-mint-400' : 'text-amber-600'}>
               {saved ? '자동저장 ✓' : '저장 중…'}
             </span>
           </div>

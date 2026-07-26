@@ -41,20 +41,20 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   if (loading) {
-    return <div className="p-10 text-center text-sm text-stone-400">불러오는 중…</div>
+    return <div className="p-10 text-center text-sm text-mint-400">불러오는 중…</div>
   }
 
   if (!session) {
     return (
       <div className="mx-auto max-w-sm px-6 py-24">
-        <h1 className="text-lg font-semibold tracking-tight">mintAI</h1>
-        <p className="mt-1 text-sm text-stone-500">
+        <h1 className="text-lg font-semibold tracking-tight text-mint-600">mintAI</h1>
+        <p className="mt-1 text-sm text-mint-500">
           자신의 생각들을 키워나갈 수 있는 글쓰기 도구
         </p>
 
         {sent ? (
-          <p className="mt-8 rounded-lg bg-stone-100 p-4 text-sm text-stone-600">
-            <strong className="text-stone-800">{email}</strong> 로 로그인 링크를 보냈습니다.
+          <p className="mt-8 rounded-lg bg-mint-100 p-4 text-sm text-mint-600">
+            <strong className="text-mint-800">{email}</strong> 로 로그인 링크를 보냈습니다.
             메일함을 확인하세요.
           </p>
         ) : (
@@ -65,11 +65,11 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm"
+              className="w-full rounded-lg border border-mint-300 bg-white px-4 py-2.5 text-sm"
             />
             <button
               type="submit"
-              className="mt-3 w-full rounded-lg bg-stone-800 py-2.5 text-sm text-white"
+              className="mt-3 w-full rounded-lg bg-mint-800 py-2.5 text-sm text-white"
             >
               로그인 링크 받기
             </button>

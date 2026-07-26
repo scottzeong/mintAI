@@ -92,16 +92,16 @@ export default function Capture() {
         onKeyDown={onKeyDown}
         rows={4}
         placeholder="지금 떠오른 생각을 그대로…"
-        className="w-full resize-none rounded-lg border border-stone-300 bg-white p-4
-                   text-lg leading-relaxed placeholder:text-stone-400"
+        className="w-full resize-none rounded-lg border border-mint-300 bg-white p-4
+                   text-lg leading-relaxed placeholder:text-mint-400"
       />
 
-      <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-stone-600">
+      <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-mint-600">
         <input
           type="checkbox"
           checked={needsResearch}
           onChange={(e) => setNeedsResearch(e.target.checked)}
-          className="h-4 w-4 accent-stone-600"
+          className="h-4 w-4 accent-mint-600"
         />
         자료 조사
       </label>
@@ -112,8 +112,8 @@ export default function Capture() {
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={onKeyDown}
           placeholder="무엇을 알아야 하나?"
-          className="mt-2 w-full rounded-lg border border-stone-300 bg-white px-4 py-2
-                     text-sm placeholder:text-stone-400"
+          className="mt-2 w-full rounded-lg border border-mint-300 bg-white px-4 py-2
+                     text-sm placeholder:text-mint-400"
         />
       )}
 
@@ -122,22 +122,22 @@ export default function Capture() {
         <button
           onClick={() => void save()}
           disabled={!thought.trim()}
-          className="shrink-0 rounded-lg bg-stone-800 px-4 py-2 text-sm text-white
-                     disabled:bg-stone-300"
+          className="shrink-0 rounded-lg bg-mint-800 px-4 py-2 text-sm text-white
+                     disabled:bg-mint-200 disabled:text-mint-500"
         >
           Save <span className="ml-1 opacity-60">⌘↵</span>
         </button>
       </div>
 
       <div className="mt-10">
-        <h2 className="mb-3 text-xs uppercase tracking-wider text-stone-400">최근</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wider text-mint-400">최근</h2>
         {recent.length === 0 ? (
-          <p className="text-sm text-stone-400">아직 없습니다.</p>
+          <p className="text-sm text-mint-400">아직 없습니다.</p>
         ) : (
-          <ul className="divide-y divide-stone-200">
+          <ul className="divide-y divide-mint-200">
             {recent.map((idea) => (
               <li key={idea.id} className="flex items-baseline gap-3 py-2.5">
-                <span className="flex-1 text-stone-700">{idea.raw_thought}</span>
+                <span className="flex-1 text-mint-700">{idea.raw_thought}</span>
                 {idea.question && (
                   <span
                     title={idea.question}
@@ -146,7 +146,7 @@ export default function Capture() {
                     조사 대기
                   </span>
                 )}
-                <time className="shrink-0 text-xs text-stone-400">
+                <time className="shrink-0 text-xs text-mint-400">
                   {relativeTime(idea.created_at)}
                 </time>
               </li>
