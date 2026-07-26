@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { relativeTime } from '@/lib/time'
+import Structuring, { MIN_CARDS_FOR_STRUCTURING } from '@/components/Structuring'
 import type { Card, Collection, Source, TagCount } from '@/lib/types'
 
 /**
@@ -27,8 +28,21 @@ export default function Library() {
   const [tags, setTags] = useState<TagCount[]>([])
   const [activeCollection, setActiveCollection] = useState<number | null>(null)
   const [activeTags, setActiveTags] = useState<string[]>([])
+  const [structuring, setStructuring] = useState(false)
+  const [allCards, setAllCards] = useState<Card[]>([])
 
   const debounce = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // ★ Structuring 은 필터 결과가 아니라 **전체 카드**를 대상으로 한다 (§6 결정 3).
+  //   화면에서 보고 있는 것과 제안 대상이 다르면 혼란스럽지만, 필터로 좁힌 상태에서
+  //   누른 제안이 "내 카드 전부"가 아니라는 건 더 혼란스럽다.
+  const loadAllCards = useCallback(async () => {
+    const { data } = await supabase
+      .from('cards')
+      .select('*')
+      .order('created_at', { ascending: true })
+    setAllCards((data ?? []) as Card[])
+  }, [])
 
   const loadFacets = useCallback(async () => {
     const [{ data: cols }, { data: tg }] = await Promise.all([
@@ -78,7 +92,8 @@ export default function Library() {
 
   useEffect(() => {
     void loadFacets()
-  }, [loadFacets])
+    void loadAllCards()
+  }, [loadFacets, loadAllCards])
 
   useEffect(() => {
     void load(q, activeCollection, activeTags)
@@ -116,6 +131,19 @@ export default function Library() {
     }
     if (activeCollection === id) setActiveCollection(null)
     await loadFacets()
+  }
+
+  if (structuring) {
+    return (
+      <Structuring
+        cards={allCards}
+        onClose={() => setStructuring(false)}
+        onConfirmed={() => {
+          setStructuring(false)
+          alert('책 구조가 확정되었습니다. Write 화면에서 이어서 쓰세요.')
+        }}
+      />
+    )
   }
 
   if (selected) {
@@ -247,7 +275,29 @@ export default function Library() {
               className="flex-1 rounded-lg border border-stone-300 bg-white px-4 py-2.5 text-sm"
             />
             <span className="shrink-0 text-sm text-stone-400">{cards.length}장</span>
+            {/* 카드 수가 부족하면 비활성 — 카드 5장으로 만든 책 구조는 우스운
+                결과가 나오고, 그 인상이 "이 기능은 쓸모없다"가 된다 (§1.3) */}
+            <button
+              onClick={() => setStructuring(true)}
+              disabled={allCards.length < MIN_CARDS_FOR_STRUCTURING}
+              title={
+                allCards.length < MIN_CARDS_FOR_STRUCTURING
+                  ? `책 구조를 제안하려면 카드가 ${MIN_CARDS_FOR_STRUCTURING}장 이상 필요합니다 (현재 ${allCards.length}장)`
+                  : `전체 카드 ${allCards.length}장으로 책 구조를 제안받습니다`
+              }
+              className="shrink-0 rounded-lg bg-stone-800 px-3 py-2 text-sm text-white
+                         disabled:bg-stone-200 disabled:text-stone-400"
+            >
+              Structuring
+            </button>
           </div>
+
+          {allCards.length < MIN_CARDS_FOR_STRUCTURING && (
+            <p className="mb-4 text-xs text-stone-400">
+              책 구조 제안은 카드 {MIN_CARDS_FOR_STRUCTURING}장부터 — 현재{' '}
+              {allCards.length}장 (앞으로 {MIN_CARDS_FOR_STRUCTURING - allCards.length}장)
+            </p>
+          )}
 
           {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
 

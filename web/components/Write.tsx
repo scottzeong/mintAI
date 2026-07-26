@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Markdown from '@/components/Markdown'
-import type { Card, Draft, Source } from '@/lib/types'
+import BookWriter from '@/components/BookWriter'
+import type { Card, Draft, Source, Work } from '@/lib/types'
 
 /**
  * Write — 카드를 보면서 글을 쓴다 (docs/MVP.md §3.4)
@@ -19,7 +20,94 @@ import type { Card, Draft, Source } from '@/lib/types'
  */
 const AUTOSAVE_MS = 800
 
+/**
+ * Write 는 두 모드다 (STRUCTURING.md §4).
+ *
+ *   낱글 → drafts   (에세이·칼럼. 기존 그대로)
+ *   책   → works    (Structuring 으로 확정된 구조)
+ *
+ * drafts 를 없애지 않은 이유: §8의 `long_drafts`(800자 글 1편)가 drafts 를 재고 있다.
+ * 진행 중인 판정 기준을 갈아엎으면 4주 실험이 흔들린다.
+ */
 export default function Write() {
+  const [mode, setMode] = useState<'draft' | 'book'>('draft')
+  const [works, setWorks] = useState<Work[]>([])
+  const [openWork, setOpenWork] = useState<Work | null>(null)
+
+  useEffect(() => {
+    supabase
+      .from('works')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setWorks((data ?? []) as Work[]))
+  }, [])
+
+  if (openWork) {
+    return <BookWriter work={openWork} onExit={() => setOpenWork(null)} />
+  }
+
+  return (
+    <div>
+      <div className="mx-auto max-w-6xl px-6 pt-6">
+        <div className="flex gap-1.5">
+          <button
+            onClick={() => setMode('draft')}
+            className={
+              'rounded px-3 py-1.5 text-xs ' +
+              (mode === 'draft'
+                ? 'bg-stone-800 text-white'
+                : 'border border-stone-300 text-stone-500 hover:text-stone-700')
+            }
+          >
+            낱글
+          </button>
+          <button
+            onClick={() => setMode('book')}
+            className={
+              'rounded px-3 py-1.5 text-xs ' +
+              (mode === 'book'
+                ? 'bg-stone-800 text-white'
+                : 'border border-stone-300 text-stone-500 hover:text-stone-700')
+            }
+          >
+            책 {works.length > 0 && <span className="opacity-60">{works.length}</span>}
+          </button>
+        </div>
+      </div>
+
+      {mode === 'book' ? (
+        <div className="mx-auto max-w-2xl px-6 py-10">
+          {works.length === 0 ? (
+            <p className="text-sm text-stone-500">
+              아직 확정된 책이 없습니다. Library 에서 <strong>Structuring</strong> 을
+              눌러 구조를 제안받으세요.
+            </p>
+          ) : (
+            <ul className="divide-y divide-stone-200">
+              {works.map((w) => (
+                <li key={w.id}>
+                  <button
+                    onClick={() => setOpenWork(w)}
+                    className="w-full py-4 text-left hover:bg-stone-100/60"
+                  >
+                    <p className="font-medium text-stone-800">{w.title}</p>
+                    {w.thesis && (
+                      <p className="mt-1 text-sm text-stone-600">{w.thesis}</p>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <DraftWriter />
+      )}
+    </div>
+  )
+}
+
+function DraftWriter() {
   const [drafts, setDrafts] = useState<Draft[]>([])
   const [current, setCurrent] = useState<Draft | null>(null)
   const [title, setTitle] = useState('')

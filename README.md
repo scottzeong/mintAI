@@ -29,6 +29,7 @@
 |---|---|
 | **[MVP.md](docs/MVP.md)** | **← 현재 구현 대상** |
 | [RESEARCH.md](docs/RESEARCH.md) | 리서치 자료 구조 — 질문 유형 8종별 형식 |
+| [STRUCTURING.md](docs/STRUCTURING.md) | 카드에서 책으로 — 구조 제안·확정·챕터 집필 |
 | [PRD.md](docs/PRD.md) | 최종 지향점 / North Star |
 | [IDEA.md](IDEA.md) | 최초 원안 |
 
@@ -43,7 +44,8 @@
 | **Capture** | ✅ autofocus · 연속 입력 · ⌘Enter · 낙관적 저장 |
 | **Digest** ★ | ✅ 좌우 분할 · 붙여넣기 차단 · 원자적 폐기 · **자료 버리기** |
 | **Library** | ✅ 한국어 검색 · 상세 · 수정 · 삭제 · **분류(태그·컬렉션)** |
-| **Write** | ✅ 자동저장 · 카드 인용 삽입 · 마크다운 미리보기 |
+| **Write** | ✅ 낱글/책 두 모드 · 자동저장 · 카드 인용 삽입 |
+| **Structuring** | ✅ 카드 50장부터 · 구조 제안 3개 · 확정 시 나머지 폐기 |
 
 2026-07-25, 로컬 FastAPI + SQLite 에서 **Vercel + Supabase** 로 옮겼다.
 이유와 대가는 [MVP.md §6.1 · §6.2](docs/MVP.md) 참조.
@@ -80,22 +82,26 @@ supabase/
   migrations/0003_discard.sql  자료 폐기 (§3.5)
   migrations/0004_classify.sql 카드 분류 — 컬렉션·태그 (§3.6)
   migrations/0005_research_kind.sql  자료 유형·길이 (RESEARCH.md)
+  migrations/0006_structuring.sql    책·챕터·구조 제안 (STRUCTURING.md)
   functions/research/        Edge Function (리서치)
-  tests/run_tests.py         실제 Postgres 로 돌리는 검증 69종
+  functions/structure/       Edge Function (구조 제안 — 웹 검색 없음, 원칙 4)
+  tests/run_tests.py         실제 Postgres 로 돌리는 검증 85종
 docs/                     MVP.md · PRD.md
 ```
 
-**서버 로직은 Postgres 함수 8개가 전부다.**
+**서버 로직은 Postgres 함수 10개가 전부다.**
 
 | 함수 | 역할 |
 |---|---|
 | `digest()` | ★ 카드 생성 + 출처 승계 + **AI 산문 폐기** + 상태 전이 (원자적) |
 | `search_cards()` | 한국어 검색 (MVP.md §2.1) |
 | `app_open()` | 계측 기록 + 리서치 고아 복구 (§2.2 · §4.1) |
-| `stats()` | §8 판정 지표 13종 — 4주 뒤 이 함수 하나로 판정 |
+| `stats()` | §8 판정 지표 17종 — 4주 뒤 이 함수 하나로 판정 |
 | `discard_research()` | 카드 없이 자료 폐기 — 폐기 경로에서도 원칙 1 집행 (§3.5) |
 | `tag_counts()` · `collection_counts()` | 분류 집계 (§3.6) |
 | `research_by_kind()` | 유형별 자료 길이·소화/폐기 (RESEARCH.md §5) |
+| `confirm_structure()` | ★ 제안 하나를 책으로 확정하고 **나머지를 폐기** (STRUCTURING.md §2) |
+| `work_progress()` | 책별 진행·제목 수정률 — 0이면 AI 목차를 받아쓰는 것 |
 
 > `digest()` 가 DB 안에 있는 이유: 폐기가 클라이언트 코드에 있으면 클라이언트를
 > 바꿔서 건너뛸 수 있다. DB 함수 안에 있으면 **어떤 경로로 소화하든 폐기가 함께
@@ -107,7 +113,7 @@ docs/                     MVP.md · PRD.md
 
 1. [supabase.com](https://supabase.com) 에서 프로젝트 생성
 2. SQL Editor 에 `supabase/migrations/` 의 SQL 을 **번호 순서대로** 실행
-   (`0001` → `0002` → `0003` → `0004` → `0005`)
+   (`0001` → `0002` → `0003` → `0004` → `0005` → `0006`)
 3. Authentication → Providers → **Email** 활성화, Confirm email 켜기
 4. Project Settings → API 에서 **Project URL** 과 **anon key** 복사
 
@@ -141,7 +147,7 @@ Supabase Authentication → URL Configuration 에 Vercel 도메인을
 
 ```bash
 pip install pgserver "psycopg[binary]"
-python supabase/tests/run_tests.py     # 69/69 — PostgreSQL 16.2 실측
+python supabase/tests/run_tests.py     # 85/85 — PostgreSQL 16.2 실측
 cd web && npm.cmd run build
 ```
 
@@ -167,6 +173,7 @@ select stats();
 | `paste_blocked` | 기록만 — H1이 무너지는 순간을 가장 먼저 보여준다 |
 | `discard_rate` | 기록만 — 높으면 H1이 아니라 리서치 품질 문제 |
 | `avg_chars` | 기록만 — `avg_queue` 와 함께 봐야 3,000자 전환을 판정할 수 있다 |
+| `title_edit_rate` | 기록만 — 0에 가까우면 **AI가 짠 책을 받아쓰는 것** |
 
 판정 해석은 [MVP.md §8](docs/MVP.md) 참조. **"카드가 안 쌓임"이 가장 중요한 실패
 모드다** — 그 경우 나머지를 아무리 정교하게 만들었어도 전제가 틀린 것이다.

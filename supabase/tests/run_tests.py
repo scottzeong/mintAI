@@ -117,12 +117,13 @@ def main() -> int:
     )
     check(
         tables == {"ideas", "research_runs", "cards", "sources", "drafts", "events",
-                   "collections", "card_collections"},
-        f"8개 테이블 생성됨 ({len(tables)}개)",
+                   "collections", "card_collections",
+                   "works", "chapters", "chapter_cards", "structuring_runs"},
+        f"12개 테이블 생성됨 ({len(tables)}개)",
     )
     check(
-        val("select count(*) from pg_policies where schemaname='public';") == 8,
-        "RLS 정책 8개 — 새 테이블도 빠짐없이",
+        val("select count(*) from pg_policies where schemaname='public';") == 12,
+        "RLS 정책 12개 — 새 테이블도 빠짐없이",
     )
 
     # ══════════════ 2. ★ digest() — 원칙 1·2 ══════════════
@@ -264,9 +265,10 @@ def main() -> int:
     expected_keys = {
         "ideas", "cards", "drafts", "pending_digest", "digest_rate",
         "active_days", "avg_queue", "paste_blocked", "research_failed",
-        "discarded", "discard_rate", "avg_chars", "long_drafts",
+        "discarded", "discard_rate", "avg_chars",
+        "works", "chapters", "book_chars", "title_edit_rate", "long_drafts",
     }
-    check(set(s) == expected_keys, f"지표 13종 반환 ({len(s)}개)")
+    check(set(s) == expected_keys, f"지표 17종 반환 ({len(s)}개)")
     check(s["long_drafts"] == 1, f"800자 이상 글 집계 ({s['long_drafts']})")
     check(s["active_days"] == 1, f"사용 일수 ({s['active_days']})")
     check(s["paste_blocked"] == 0, "붙여넣기 시도 집계")
@@ -385,8 +387,90 @@ def main() -> int:
     check("avg_chars" in s4, "stats() 에 평균 자료 길이 포함")
     check(s4["avg_chars"] > 0, f"평균 자료 길이 ({s4['avg_chars']})")
 
-    # ══════════════ 11. RLS ══════════════
-    print("\n11. RLS — 남의 데이터가 보이면 안 된다")
+    # ══════════════ 11. Structuring (STRUCTURING.md) ══════════════
+    print("\n11. Structuring — 카드에서 책으로")
+    ids = [r[0] for r in con.execute("select id from cards order by id").fetchall()]
+    other_uid_card = None
+
+    payload = {
+        "proposals": [
+            {
+                "title": "신뢰라는 비용",
+                "thesis": "신뢰는 감정이 아니라 회계 항목이다",
+                "audience": "조직을 운영하는 사람",
+                "chapters": [
+                    {"title": "1장 신뢰의 값", "gist": "거래비용", "card_ids": [ids[0], ids[1]]},
+                    {"title": "2장 거리의 대가", "gist": "리모트", "card_ids": [ids[1]]},
+                ],
+                "excluded": [{"card_id": 999999, "reason": "층위가 다름"}],
+            },
+            {"title": "채택 안 될 책 A", "chapters": []},
+            {"title": "채택 안 될 책 B", "chapters": []},
+        ]
+    }
+    import json as _json
+    rid = val(
+        "insert into structuring_runs(status, output_json, card_count, model, chars) "
+        "values ('ready', %s::jsonb, 3, 'test', 1000) returning id;",
+        _json.dumps(payload, ensure_ascii=False),
+    )
+
+    wid = val("select (confirm_structure(%s, 0)).id;", rid)
+    check(wid is not None, "confirm_structure 실행 성공")
+    check(val("select title from works where id=%s;", wid) == "신뢰라는 비용", "책 제목 승계")
+    check(val("select count(*) from chapters where work_id=%s;", wid) == 2, "챕터 2개 생성")
+
+    # ★ 원칙 1의 완화형 — 원안과 내 제목이 나란히 남는다
+    row = con.execute(
+        "select title, proposed_title from chapters where work_id=%s order by seq limit 1", (wid,)
+    ).fetchone()
+    check(row[0] == row[1] == "1장 신뢰의 값",
+          "★ confirm 직후 title = proposed_title (아직 내가 안 고침)")
+
+    check(val("select count(*) from chapter_cards;") == 3, "카드 배치 (중복 포함 3건)")
+    check(
+        val("select count(distinct card_id) from chapter_cards;") == 2,
+        "★ 같은 카드가 여러 장에 배치될 수 있다 — 책은 카드의 소유자가 아니다",
+    )
+
+    # ★ 채택되지 않은 제안 2개는 폐기된다
+    check(val("select output_json from structuring_runs where id=%s;", rid) is None,
+          "★ 나머지 제안 폐기됨 — 쓰이지 않은 AI 산문은 남기지 않는다")
+    check(val("select purged_at is not null from structuring_runs where id=%s;", rid),
+          "purged_at 기록")
+    check(val("select chars from structuring_runs where id=%s;", rid) == 1000,
+          "chars 는 남는다")
+    check(val("select count(*) from events where kind='structure_confirmed';") == 1,
+          "structure_confirmed 계측")
+
+    check(fails("select confirm_structure(%s, 0);", rid) is not None,
+          "이미 확정된 제안은 재확정 불가")
+    check(fails("select confirm_structure(999999, 0);") is not None, "없는 run 은 예외")
+
+    # 존재하지 않는 카드 id 는 조용히 걸러진다 (RLS 우회 방지)
+    rid2 = val(
+        "insert into structuring_runs(status, output_json) values ('ready', %s::jsonb) returning id;",
+        _json.dumps({"proposals": [{"title": "가짜 카드 책",
+                                    "chapters": [{"title": "1장", "card_ids": [999999]}]}]}),
+    )
+    con.execute("select confirm_structure(%s, 0);", (rid2,))
+    check(
+        val("select count(*) from chapter_cards cc join chapters c on c.id=cc.chapter_id "
+            "join works w on w.id=c.work_id where w.title='가짜 카드 책';") == 0,
+        "★ 존재하지 않는 카드 id 는 배치되지 않는다 (FK 는 RLS 를 타지 않는다)",
+    )
+
+    # 제목 수정률
+    con.execute("update chapters set title='내가 고친 제목' where work_id=%s and seq=1", (wid,))
+    prog = {r[0]: r for r in con.execute("select * from work_progress()").fetchall()}
+    check(prog[wid][3] == 1, f"★ 제목 수정 챕터 집계 ({prog[wid][3]}) — 0이면 받아쓰기다")
+
+    s5 = val("select stats();")
+    check("title_edit_rate" in s5 and "works" in s5, "stats() 에 Structuring 지표 포함")
+    check(s5["works"] == 2, f"책 수 ({s5['works']})")
+
+    # ══════════════ 12. RLS ══════════════
+    print("\n12. RLS — 남의 데이터가 보이면 안 된다")
     con.execute("update _test_ctx set uid=%s", (other,))
     check(val("select count(*) from cards;") == 0, "다른 사용자에게는 카드 0건")
     check(val("select count(*) from search_cards('협력비용');") == 0, "검색도 격리됨")

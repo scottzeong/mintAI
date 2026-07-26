@@ -42,6 +42,53 @@ export interface TagCount {
   n: number
 }
 
+// ── Structuring (docs/STRUCTURING.md) ──
+
+export interface ProposalChapter {
+  title: string
+  gist?: string
+  card_ids: number[]
+}
+
+export interface Proposal {
+  title: string
+  thesis?: string
+  audience?: string
+  chapters: ProposalChapter[]
+  excluded?: { card_id: number; reason: string }[]
+}
+
+export interface StructuringRun {
+  id: number
+  status: 'running' | 'ready' | 'failed'
+  output_json: { proposals: Proposal[] } | null
+  card_count: number | null
+  model: string | null
+  error: string | null
+  ran_at: string
+}
+
+export interface Work {
+  id: number
+  title: string
+  thesis: string | null
+  audience: string | null
+  status: string
+  created_at: string
+}
+
+export interface Chapter {
+  id: number
+  work_id: number
+  seq: number
+  title: string
+  /** AI 원안. title 과 다르면 내가 고친 것이다 (STRUCTURING.md §0.2) */
+  proposed_title: string | null
+  gist: string | null
+  body_md: string
+  updated_at: string
+}
+
 export interface Draft {
   id: number
   title: string
