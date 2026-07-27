@@ -7,7 +7,7 @@ import Digest from '@/components/Digest'
 import Library from '@/components/Library'
 import Write from '@/components/Write'
 import { appOpen } from '@/lib/events'
-import { supabase } from '@/lib/supabase'
+import { signOut } from '@/lib/auth'
 
 /**
  * 앱 셸 — MVP 의 4개 화면 (docs/MVP.md §1.1).
@@ -68,7 +68,7 @@ function Shell() {
             </button>
           ))}
           <button
-            onClick={() => void supabase.auth.signOut()}
+            onClick={() => void signOut()}
             className="ml-auto py-3 text-xs text-mint-300 hover:text-mint-500"
           >
             로그아웃
