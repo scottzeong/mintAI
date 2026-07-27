@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Image from 'next/image'
 import AuthGate from '@/components/AuthGate'
 import Capture from '@/components/Capture'
 import Digest from '@/components/Digest'
@@ -45,9 +46,16 @@ function Shell() {
     <div className="min-h-screen">
       <header className="border-b border-mint-200 bg-white">
         <nav className="mx-auto flex max-w-2xl items-center gap-1 px-6">
-          <span className="mr-4 py-3 text-sm font-semibold tracking-tight text-mint-600">
-            mintAI
-          </span>
+          {/* 로고. h-6 로 고정하고 폭은 비율에 맡긴다 — 원본이 256x80 이라
+              폭을 고정하면 세로가 헤더 높이를 넘는다 */}
+          <Image
+            src="/logo.png"
+            alt="mintAI"
+            width={256}
+            height={80}
+            priority
+            className="mr-4 h-6 w-auto shrink-0"
+          />
           {SCREENS.map((s) => (
             <button
               key={s.id}
