@@ -281,7 +281,7 @@ export default function Library() {
             <input
               value={q}
               onChange={(e) => onSearch(e.target.value)}
-              placeholder="🔍  카드 검색 — 두 글자도 됩니다"
+              placeholder="카드 검색 — 두 글자도 됩니다"
               className="flex-1 rounded-lg border border-mint-300 bg-white px-4 py-2.5 text-sm"
             />
             <span className="shrink-0 text-sm text-mint-400">{cards.length}장</span>
