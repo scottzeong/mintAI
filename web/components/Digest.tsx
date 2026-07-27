@@ -243,18 +243,20 @@ export default function Digest() {
    *
    * 폐기도 계측한다. 전환율이 낮을 때 "요약이 귀찮아서"인지 "자료가 쓸모없어서"인지
    * 구분할 수 있는 유일한 신호다 (§8).
+   *
+   * 착상까지 보관하는 경로는 화면에서 뺐다 (2026-07-28). 자료가 쓸모없다는 것과
+   * 착상이 틀렸다는 것은 다른 판단인데, 자료를 버리는 자리에서 착상까지 접게 하면
+   * 그 둘이 뭉개진다. 착상은 늘 큐에 남고, 접는 일은 Capture 쪽에서 한다.
+   * DB 함수의 p_archive_idea 는 그대로 두되 항상 false 로 부른다.
    */
-  async function discard(archiveIdea: boolean) {
+  async function discard() {
     if (!current) return
-    const msg = archiveIdea
-      ? '자료를 버리고 착상도 보관 처리할까요?'
-      : '자료를 버릴까요? 착상은 큐에 남아 다시 조사할 수 있습니다.'
-    if (!confirm(msg)) return
+    if (!confirm('자료를 버릴까요? 착상은 큐에 남아 다시 조사할 수 있습니다.')) return
 
     setBusy(true)
     const { error } = await supabase.rpc('discard_research', {
       p_idea_id: current.id,
-      p_archive_idea: archiveIdea,
+      p_archive_idea: false,
     })
     setBusy(false)
     if (error) {
@@ -278,10 +280,7 @@ export default function Digest() {
   if (!current) {
     return (
       <div className="mx-auto max-w-2xl px-6 py-10">
-        <h2 className="mb-1 text-sm font-semibold text-mint-700">Digest Queue</h2>
-        <p className="mb-5 text-xs text-mint-400">
-          대기 큐가 길어지면 그게 R1 병목이다 (§8: 평균 5 이하)
-        </p>
+        <h2 className="mb-5 text-sm font-semibold text-mint-700">Digest Queue</h2>
         {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         {queue.length === 0 ? (
           <p className="text-sm text-mint-400">
@@ -359,16 +358,16 @@ export default function Digest() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-amber-700">⏳ 소화하면 삭제됩니다</span>
+              <span className="text-amber-700">Digest 완료하면 삭제됩니다</span>
               {run?.output_md && (
                 <button
-                  onClick={() => void discard(false)}
+                  onClick={() => void discard()}
                   disabled={busy}
                   title="카드를 만들지 않고 자료만 버립니다. 착상은 큐에 남습니다."
                   className="rounded border border-mint-300 px-2 py-0.5 text-mint-500
                              hover:border-red-300 hover:text-red-600 disabled:opacity-40"
                 >
-                  버리기
+                  Delete
                 </button>
               )}
             </div>
@@ -425,9 +424,8 @@ export default function Digest() {
 
         {/* 우: 영구 */}
         <section className="rounded-lg border border-mint-300 bg-white p-5 md:sticky md:top-6">
-          <header className="mb-3 flex items-center justify-between text-xs">
+          <header className="mb-3 text-xs">
             <span className="font-semibold text-mint-700">내 요약</span>
-            <span className="text-mint-500">✍ 영구 저장</span>
           </header>
 
           <input
@@ -478,16 +476,7 @@ export default function Digest() {
             className="w-full rounded-lg bg-mint-800 py-2.5 text-sm text-white
                        disabled:bg-mint-200 disabled:text-mint-500"
           >
-            소화 완료 — 왼쪽 삭제
-          </button>
-
-          <button
-            onClick={() => void discard(true)}
-            disabled={busy}
-            className="mt-2 w-full py-1.5 text-xs text-mint-400 hover:text-red-600
-                       disabled:opacity-40"
-          >
-            이 착상은 접는다 — 자료 폐기 + 보관
+            Digest 완료
           </button>
         </section>
       </div>
