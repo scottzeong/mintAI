@@ -3,25 +3,22 @@
 import { useEffect, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
-import {
-  MIN_PASSWORD,
-  requestPasswordReset,
-  signIn,
-  signInWithMagicLink,
-  signUp,
-} from '@/lib/auth'
+import AuthShell from '@/components/AuthShell'
+import { MIN_PASSWORD, requestPasswordReset, signIn, signUp } from '@/lib/auth'
 
 type Mode = 'signin' | 'signup' | 'reset'
 
 /**
  * 로그인 게이트 (docs/AUTH.md)
  *
- * 세 가지 길을 둔다: 비밀번호 로그인 · 회원가입 · 매직 링크.
- *
  * ⚠ **"아이디 찾기"는 만들지 않는다** (AUTH.md §0).
  *   아이디가 곧 이메일이라 찾을 대상이 없고, "이 이메일이 가입돼 있나요"에 답하는
  *   화면은 회원 명부를 알려주는 창구가 된다.
- *   대신 재설정 메일과 매직 링크가 그 역할을 안전하게 대신한다.
+ *
+ * ⚠ 매직 링크 버튼을 화면에서 뺐다 (2026-07-25).
+ *   기능 자체는 lib/auth.ts 에 남아 있다. 다만 매직 링크로만 가입한 기존 계정은
+ *   비밀번호가 없으므로, **"비밀번호를 잊으셨나요"가 그들의 유일한 입구**다.
+ *   그래서 그 링크는 반드시 눈에 띄는 자리에 둔다.
  */
 export default function AuthGate({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
@@ -69,22 +66,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     // 로그인 성공은 메시지가 없다 — onAuthStateChange 가 화면을 넘긴다
   }
 
-  async function magicLink() {
-    if (!email.trim()) {
-      setError('이메일을 먼저 입력하세요.')
-      return
-    }
-    setBusy(true)
-    setError(null)
-    setNotice(null)
-    const r = await signInWithMagicLink(email)
-    setBusy(false)
-    if (!r.ok) setError(r.message)
-    else setNotice(r.message)
-  }
-
   if (loading) {
-    return <div className="p-10 text-center text-sm text-mint-400">불러오는 중…</div>
+    return (
+      <AuthShell>
+        <p className="text-center text-sm text-mint-400">불러오는 중…</p>
+      </AuthShell>
+    )
   }
   if (session) return <>{children}</>
 
@@ -92,13 +79,15 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
     mode === 'signin' ? '로그인' : mode === 'signup' ? '회원가입' : '비밀번호 재설정'
 
   return (
-    <div className="mx-auto max-w-sm px-6 py-20">
-      <h1 className="text-lg font-semibold tracking-tight text-mint-600">mintAI</h1>
-      <p className="mt-1 text-sm text-mint-500">
-        자신의 생각들을 키워나갈 수 있는 글쓰기 도구
-      </p>
+    <AuthShell>
+      <h2 className="text-sm font-medium text-mint-800">{title}</h2>
 
-      <h2 className="mt-10 text-sm font-medium text-mint-800">{title}</h2>
+      {mode === 'reset' && (
+        <p className="mt-2 text-xs leading-relaxed text-mint-500">
+          가입한 주소를 입력하면 재설정 링크를 보냅니다. 비밀번호를 아직 만들지 않았다면
+          여기서 처음 설정할 수 있습니다.
+        </p>
+      )}
 
       <form onSubmit={submit} className="mt-4 space-y-3">
         <input
@@ -154,7 +143,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
         <p className="mt-3 rounded-lg bg-mint-50 p-3 text-sm text-mint-700">{notice}</p>
       )}
 
-      {/* 모드 전환 */}
       <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-mint-500">
         {mode !== 'signin' && (
           <button onClick={() => switchMode('signin')} className="hover:text-mint-800">
@@ -172,23 +160,6 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           </button>
         )}
       </div>
-
-      <div className="mt-6 border-t border-mint-200 pt-5">
-        <button
-          onClick={() => void magicLink()}
-          disabled={busy}
-          className="w-full rounded-lg border border-mint-300 py-2.5 text-sm text-mint-700
-                     hover:border-mint-400 disabled:opacity-40"
-        >
-          비밀번호 없이 메일 링크로 로그인
-        </button>
-
-        {/* ★ "아이디 찾기" 자리를 이 안내가 대신한다 (AUTH.md §0.3) */}
-        <p className="mt-3 text-xs leading-relaxed text-mint-400">
-          가입한 이메일이 기억나지 않으면, 쓰던 주소로 재설정이나 링크 로그인을 요청해
-          보세요. 가입돼 있으면 메일이 도착합니다.
-        </p>
-      </div>
-    </div>
+    </AuthShell>
   )
 }

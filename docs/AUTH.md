@@ -85,11 +85,17 @@
 
 ## 4. Supabase 설정 (코드 밖)
 
-1. **Authentication → Providers → Email** — `Enable` 확인
+비밀번호 관련 설정은 전부 **Authentication → Sign In / Providers → Email** 한 화면에 있다.
+(`Policies` 라는 메뉴는 없다)
+
+1. **Email** 공급자 `Enable` 확인
 2. **Confirm email** — 켠다. 끄면 남의 이메일로 가입할 수 있다
-3. **Authentication → Policies → Minimum password length** — `8`
-4. **Leaked password protection** — 켠다
-5. **URL Configuration → Redirect URLs** 에 재설정 착지점 추가:
+3. **Minimum password length** — `8`
+4. **Required characters** — **`No required characters` 로 둔다.**
+   특수문자 강제는 `Password1!` 같은 예측 가능한 비밀번호를 만든다 (§3)
+5. **Prevent use of leaked passwords** — 켠다. ⚠ **Pro 플랜 이상에서만 제공된다.**
+   Free 플랜이면 이 항목이 잠겨 있고, 그만큼 3번(길이)이 더 중요해진다
+6. **URL Configuration → Redirect URLs** 에 재설정 착지점 추가:
    ```
    https://mintai.kr/auth/reset
    https://<프로젝트>.vercel.app/auth/reset

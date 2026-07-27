@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { MIN_PASSWORD, updatePassword } from '@/lib/auth'
+import AuthShell from '@/components/AuthShell'
 
 /**
  * 비밀번호 재설정 착지점 (docs/AUTH.md §2)
@@ -156,10 +157,9 @@ export default function ResetPasswordPage() {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mx-auto max-w-sm px-6 py-20">
-      <h1 className="text-lg font-semibold tracking-tight text-mint-600">mintAI</h1>
-      <h2 className="mb-4 mt-8 text-sm font-medium text-mint-800">비밀번호 재설정</h2>
+    <AuthShell>
+      <h2 className="mb-4 text-sm font-medium text-mint-800">비밀번호 재설정</h2>
       {children}
-    </div>
+    </AuthShell>
   )
 }
